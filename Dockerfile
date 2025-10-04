@@ -33,9 +33,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (skip Puppeteer's Chromium download since we installed Chrome)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-RUN npm ci --only=production
+# Install dependencies (skip Puppeteer's Chromium download since we installed Chromium)
+RUN PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm ci --only=production
 
 # Copy application files
 COPY . .
@@ -43,7 +42,6 @@ COPY . .
 # Set environment variables
 ENV DISPLAY=:99
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 
 # Expose port (Render provides PORT env var)
