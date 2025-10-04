@@ -85,8 +85,11 @@ async function handleWebhook(req, res) {
       console.log('[WEBHOOK] From:', webhook.number?.caller, '→', webhook.number?.called);
       console.log('[WEBHOOK] Status:', webhook.status);
       
-      // Check if we've already processed this call
-      if (processedWebhooks.has(webhook.id)) {
+      // Check if we've already processed this call OR if there's already an active call
+      const callerNumber = webhook.number?.caller;
+      const activeCallKey = `${callerNumber}_active`;
+      
+      if (processedWebhooks.has(webhook.id) || processedWebhooks.has(activeCallKey)) {
         console.log('[WEBHOOK] ⚠️  Call already being processed, ignoring duplicate webhook');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
@@ -97,13 +100,15 @@ async function handleWebhook(req, res) {
         return;
       }
       
-      // Mark as processed
+      // Mark as processed (both by call ID and by caller number)
       processedWebhooks.add(webhook.id);
+      processedWebhooks.add(activeCallKey);
       
-      // Clean up old entries after 10 minutes
+      // Clean up old entries after 2 minutes (shorter timeout)
       setTimeout(() => {
         processedWebhooks.delete(webhook.id);
-      }, 600000);
+        processedWebhooks.delete(activeCallKey);
+      }, 120000);
       
       // Respond immediately to webhook (don't make Telnect wait)
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -125,7 +130,7 @@ async function handleWebhook(req, res) {
           console.log('[WEBHOOK] Initializing Puppeteer browser...');
           browser = await puppeteer.launch({
             headless: false, // MUST be false for WebRTC audio!
-            executablePath: process.env.CHROME_BIN || process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/chromium',
             args: [
               '--no-sandbox',
               '--disable-setuid-sandbox',
