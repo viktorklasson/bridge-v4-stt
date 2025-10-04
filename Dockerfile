@@ -1,12 +1,11 @@
 # Use Node.js 18 on Ubuntu
 FROM node:18-bullseye
 
-# Install Xvfb and Chrome dependencies
+# Install Xvfb and Chromium dependencies (use Debian's Chromium - faster)
 RUN apt-get update && apt-get install -y \
     xvfb \
-    wget \
-    gnupg \
-    ca-certificates \
+    chromium \
+    chromium-sandbox \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -28,20 +27,14 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
-
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies (skip Puppeteer's Chromium download since we installed Chrome)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm ci --only=production
 
 # Copy application files
@@ -49,7 +42,8 @@ COPY . .
 
 # Set environment variables
 ENV DISPLAY=:99
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 
 # Expose port (Render provides PORT env var)
