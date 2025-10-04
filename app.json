@@ -1,0 +1,32 @@
+{
+  "name": "ElevenLabs Bridge",
+  "description": "Autonomous phone call bridge to ElevenLabs AI agents",
+  "repository": "https://github.com/your-repo/bridge-v3",
+  "keywords": ["webrtc", "elevenlabs", "ai", "phone"],
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-xvfb-google-chrome"
+    },
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "env": {
+    "DISPLAY": {
+      "description": "X display for Xvfb",
+      "value": ":99"
+    },
+    "SALESYS_TOKEN": {
+      "description": "Salesys API token",
+      "required": false
+    },
+    "TELNECT_TOKEN": {
+      "description": "Telnect API token",
+      "value": "NnoXdRRU8hAvoFVfxxo2JwyF80ukM5rF0rcAksJl"
+    },
+    "ELEVENLABS_AGENT_ID": {
+      "description": "ElevenLabs agent ID",
+      "required": false
+    }
+  }
+}

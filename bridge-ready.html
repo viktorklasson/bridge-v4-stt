@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bridge Ready - Waiting for Calls</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    }
+    h1 {
+      font-size: 48px;
+      margin: 0 0 20px 0;
+    }
+    .status {
+      font-size: 24px;
+      margin: 20px 0;
+    }
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .info {
+      margin-top: 30px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    .call-info {
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      display: none;
+    }
+    .call-info.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📞 Bridge Ready</h1>
+    <div class="status pulse" id="status">Waiting for incoming calls...</div>
+    <div class="info">
+      Keep this tab open to automatically handle incoming calls<br>
+      Webhook URL: <code>https://your-ngrok-url/webhook/inbound-call</code>
+    </div>
+    <div class="call-info" id="call-info">
+      <strong>Active Call:</strong><br>
+      <span id="call-id">-</span>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    const statusEl = document.getElementById('status');
+    const callInfoEl = document.getElementById('call-info');
+    const callIdEl = document.getElementById('call-id');
+
+    function connectWebSocket() {
+      // Connect to server for call notifications
+      ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+      ws.onopen = () => {
+        console.log('[Bridge] WebSocket connected - ready for calls');
+        statusEl.textContent = '✅ Ready for calls!';
+        statusEl.classList.remove('pulse');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'incoming_call') {
+          console.log('[Bridge] Incoming call:', data.callId);
+          statusEl.textContent = '📞 Incoming call...';
+          callInfoEl.classList.add('active');
+          callIdEl.textContent = data.callId;
+          
+          // Redirect to bridge page with call ID
+          window.location.href = `/index.html?callId=${data.callId}&inbound=true`;
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('[Bridge] WebSocket closed, reconnecting...');
+        statusEl.textContent = '⚠️ Reconnecting...';
+        statusEl.classList.add('pulse');
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('[Bridge] WebSocket error:', error);
+      };
+    }
+
+    // For now, just poll for webhooks (WebSocket would be better)
+    // This is a simple fallback
+    async function pollForCalls() {
+      // Check if there's a call ID in localStorage (set by webhook)
+      const pendingCallId = localStorage.getItem('pendingCallId');
+      
+      if (pendingCallId) {
+        console.log('[Bridge] Found pending call:', pendingCallId);
+        localStorage.removeItem('pendingCallId');
+        
+        statusEl.textContent = '📞 Handling call...';
+        callInfoEl.classList.add('active');
+        callIdEl.textContent = pendingCallId;
+        
+        // Redirect to bridge page
+        window.location.href = `/index.html?callId=${pendingCallId}&inbound=true`;
+      }
+    }
+
+    // Poll every 500ms for pending calls
+    setInterval(pollForCalls, 500);
+    
+    // Try WebSocket connection (optional, for future enhancement)
+    // connectWebSocket();
+  </script>
+</body>
+</html>

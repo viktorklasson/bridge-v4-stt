@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Bridge - Webhook Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .steps {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 ElevenLabs Bridge - Webhook Test</h1>
+
+        <div class="steps">
+            <h3>🚀 Quick Setup for Public Testing:</h3>
+            <div class="step"><strong>1.</strong> Start production server: <code>npm run production</code></div>
+            <div class="step"><strong>2.</strong> Expose publicly (choose one):</div>
+            <div class="step">   • <strong>ngrok:</strong> <code>ngrok http 3000</code> (get https://xxx.ngrok.io)</code></div>
+            <div class="step">   • <strong>VPS:</strong> Deploy to a cloud server</div>
+            <div class="step">   • <strong>LocalTunnel:</strong> <code>npx localtunnel --port 3000</code></div>
+            <div class="step"><strong>3.</strong> Configure Telnect webhook to point to your public URL</div>
+            <div class="step"><strong>4.</strong> Test with buttons below</div>
+        </div>
+
+        <div>
+            <h3>🧪 Test Webhook Calls</h3>
+            <p>These buttons simulate inbound calls from Telnect:</p>
+
+            <button onclick="testWebhook('test-1')">Simulate Call #1</button>
+            <button onclick="testWebhook('test-2')">Simulate Call #2</button>
+            <button onclick="testWebhook('test-3')">Simulate Call #3</button>
+            <button onclick="testWebhook('random')">Random Call ID</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div>
+            <h3>📋 Current Status</h3>
+            <div id="server-status" class="status info">
+                Checking server status...
+            </div>
+        </div>
+
+        <div>
+            <h3>🔧 Production Commands</h3>
+            <pre>npm run production                    # Start production server
+python3 webhook-test.py               # Start test server on port 8080
+python3 webhook-test.py simulate      # Send test webhooks</pre>
+        </div>
+
+        <div>
+            <h3>🌐 Public Exposure Options</h3>
+            <div class="info">
+                <strong>ngrok (Recommended):</strong><br>
+                <code>npm install -g ngrok</code><br>
+                <code>ngrok http 3000</code><br><br>
+
+                <strong>LocalTunnel:</strong><br>
+                <code>npx localtunnel --port 3000</code><br><br>
+
+                <strong>Docker/VPS:</strong><br>
+                Deploy production-server.js to any cloud provider
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let statusDiv = document.getElementById('status');
+
+        function showStatus(message, type = 'info') {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function testWebhook(callId) {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Sending...';
+
+            try {
+                const response = await fetch('/webhook/inbound-call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        "id": `c2225ahk${callId}-${Date.now()}-3c56hbk-dgkk`,
+                        "url": `https://api.telnect.com/v1/Calls/c2225ahk${callId}-${Date.now()}-3c56hbk-dgkk`,
+                        "source": {
+                            "dialplan": {"key": "SE", "name": "Sweden", "cc": "46"},
+                            "asserted": {"scheme": "tel", "user": "0737606800"},
+                            "caller": {"scheme": "tel", "user": "0737606800"}
+                        },
+                        "destination": {
+                            "dialplan": {"key": "SE", "name": "Sweden", "cc": "46"},
+                            "req": {"scheme": "tel", "user": "0775893847"},
+                            "to": {"scheme": "tel", "user": "0775893847"}
+                        },
+                        "number": {
+                            "asserted": "0737606800",
+                            "called": "0775893847",
+                            "caller": "0737606800"
+                        },
+                        "status": "trying",
+                        "actions": []
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showStatus(`✅ ${result.message}<br>Call ID: ${result.callId}`, 'success');
+                } else {
+                    showStatus(`❌ ${result.message}`, 'error');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+            }
+
+            button.disabled = false;
+            button.textContent = `Simulate Call #${callId.split('-')[1] || 'Random'}`;
+        }
+
+        // Check server status
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('http://localhost:3000/');
+                const statusDiv = document.getElementById('server-status');
+
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = '✅ Production server running on http://localhost:3000';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = '❌ Production server not responding';
+                }
+            } catch (error) {
+                document.getElementById('server-status').innerHTML =
+                    '<span class="error">❌ Production server not running<br>Run: <code>npm run production</code></span>';
+            }
+        }
+
+        // Check status on load
+        checkServerStatus();
+        setInterval(checkServerStatus, 5000);
+    </script>
+</body>
+</html>

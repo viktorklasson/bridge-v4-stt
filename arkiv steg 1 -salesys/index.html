@@ -1,0 +1,226 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bridge v3 - Phone Dialer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .status {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .status.info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+    }
+    .status.error {
+      background: #ffebee;
+      border-left: 4px solid #f44336;
+    }
+    .status.success {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf50;
+    }
+    .call-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fafafa;
+      border-radius: 4px;
+    }
+    .call-info p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>📞 Bridge v3 - Phone Dialer</h1>
+    
+    <div class="call-info">
+      <p><strong>Calling:</strong> <span id="numberToCall">+46737606800</span></p>
+      <p><strong>From:</strong> <span id="numberToCallFrom">+46775893847</span></p>
+    </div>
+    
+    <div id="status-container"></div>
+  </div>
+
+  <script src="https://app.salesys.se/libs/easytelecom/jquery-2.1.1.min.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/jquery.json-2.4.min.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/verto-min-0.0.2.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/media-device-id.min.js"></script>
+  <audio autoplay hidden id="audio-stream"></audio>
+
+
+  <script defer>
+    const salesysToken = "support-4uFyYcYeu42OOhCuLENSw2muKQMxUWVGcta2bFS6GkWH84fnH/vvFVQG2zrl4S9z/XvOKneqE0T/XmM/7WiqlNQdslmV88ml8aLWPOCLW1Qu5gb7uaXS8nrd89dixkq0g2hCRe9dFTiTwtt8rhBk6ahiXXxgv5Xe+Xkq7WZ/3jP2ViSnsH0SCLFtJ/bXmfQhy7Q9VY6dEVwQpewDj6fe4Bq8SS3zsH5rfNjcHDUDlu4PmGnE5tAu/ft5ZtEpGHRcpa8DlU1/dKvhAZDyNt6MM7XGQs62Xv+e8ldqPqAYpqft8f1zZbT0drMRhUoo5RvV347JQlp6tFM3K17T8/D3z4VKfjs86DJszhNiPtZbq/2NSPvtbz72iZPRir/r4Gl3ShfHoH4hSGNDYFpS4SV7cSo5iLp3LQJchRtBr5gyBmy9dln4qRvgYaXFnaHj9YXP49sYg0DG+kjQ/fGiz6ew5cXJFb4PCOnYaU/637c0apyM5mUFfCrxrMQu+Kgc8q4liUHQOw/vHzTXgHUn0xsEGdA23quNFYgI3fHgTFtjOF+/KSfI0mJkXc5XbKPQKmPyyYYfIj/Y2IsyyV7qt1guztN1G1mjh2pmi9hKd5zBWamBg0fkW1EEaPV0+WFMEgTEcL8XEwVQN/gyppgx2n5yQPoO64pBKOFHSPkkFvHpnpE=";
+
+    const numberToCall = "+46737606800";
+    const numberToCallFrom = "+46775893847";
+
+    // Helper function to add status messages
+    function addStatus(message, type = 'info') {
+      const container = document.getElementById('status-container');
+      const statusDiv = document.createElement('div');
+      statusDiv.className = `status ${type}`;
+      statusDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+      container.appendChild(statusDiv);
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    addStatus('Starting Bridge v3...', 'info');
+    addStatus('Attempting to login to Salesys API...', 'info');
+
+    // Use proxy to avoid CORS issues
+    fetch("/proxy/api/dial/easytelecom-v1/login", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + salesysToken
+      }
+    }).then(res => {
+      if (!res.ok) {
+        throw new Error(`Login failed: ${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    }).then(login => {
+      addStatus('✓ Successfully logged in to Salesys', 'success');
+      addStatus('Initializing Verto connection...', 'info');
+      
+      const verto = new $.verto({
+        login: `${login.username}@${login.domain}`,
+        passwd: login.password,
+        iceServers: true,
+        socketUrl: login.url,
+        tag: "audio-stream"
+      }, {
+        onRemoteStream: stream => {
+          console.debug("onRemoteStream", stream);
+          addStatus('Audio stream connected', 'success');
+          
+          // Get audio track details
+          const audioTrack = stream.getAudioTracks()[0];
+          if (audioTrack) {
+            const settings = audioTrack.getSettings();
+            const capabilities = audioTrack.getCapabilities ? audioTrack.getCapabilities() : {};
+            const constraints = audioTrack.getConstraints ? audioTrack.getConstraints() : {};
+            
+            console.log('Audio track:', audioTrack);
+            console.log('Audio settings:', JSON.stringify(settings, null, 2));
+            console.log('Audio capabilities:', JSON.stringify(capabilities, null, 2));
+            console.log('Audio constraints:', JSON.stringify(constraints, null, 2));
+            console.table(settings);
+            console.table(capabilities);
+            
+            // Try to get sample rate from different sources
+            const sampleRate = settings.sampleRate || 
+                              (capabilities.sampleRate && capabilities.sampleRate.max) || 
+                              '48000 (default)';
+            const channels = settings.channelCount || 1;
+            
+            addStatus(`🎵 Audio: ${sampleRate}Hz, ${channels} channel(s)`, 'info');
+            
+            // Also try to get info from AudioContext
+            const audioElement = document.getElementById('audio-stream');
+            if (audioElement && audioElement.srcObject) {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              addStatus(`🎵 AudioContext sample rate: ${audioCtx.sampleRate}Hz`, 'info');
+            }
+          }
+        },
+        onWSClose: () => {
+          console.debug("onWSClose");
+          addStatus('WebSocket connection closed', 'error');
+        },
+        onMessage: (verto, call, type) => {
+          console.debug("onMessage", type);
+          addStatus(`Message received: ${type.name}`, 'info');
+
+          if (type.name === "clientReady") {
+            addStatus('Client ready, creating call to "park"...', 'info');
+            verto.newCall({
+              caller_id_name: null,
+              caller_id_number: null,
+              destination_number: "park",
+              useStereo: false,
+              useVideo: false
+            });
+          }
+        },
+        onDialogState: call => {
+          console.log("onDialogState", call);
+          addStatus(`Call state: ${call.state}`, 'info');
+
+          if (call.state === $.verto.enum.state.active) {
+            addStatus('Call is active! Now dialing actual number...', 'success');
+            fetch("/proxy/api/dial/easytelecom-v1/call", {
+              method: "POST",
+              headers: {
+                "Authorization": "Bearer " + salesysToken,
+                "Content-type": "application/json"
+              },
+              body: JSON.stringify({
+                "destinationPhoneNumber": numberToCall,
+                "callerPhoneNumber": numberToCallFrom,
+                "easyTelecomUserCallId": call.params.variables.verto_svar_api_callid
+              })
+            })
+            .then(res => {
+              if (res.ok) {
+                addStatus(`✓ Call initiated to ${numberToCall}`, 'success');
+              } else {
+                addStatus(`Failed to initiate call: ${res.status}`, 'error');
+              }
+            })
+            .catch(err => {
+              addStatus(`Error initiating call: ${err.message}`, 'error');
+            });
+          }
+        },
+        onEvent: (verto, event, data) => {
+          console.debug("onEvent", event, data);
+          addStatus(`Event: ${event}`, 'info');
+        },
+        onWSLogin: () => {
+          console.debug("onWSLogin");
+          addStatus('✓ WebSocket logged in successfully', 'success');
+        }
+      });
+
+      addStatus('Attempting Verto login...', 'info');
+      verto.login();
+
+    })
+    .catch(err => {
+      addStatus(`❌ Error: ${err.message}`, 'error');
+      addStatus('This is likely a CORS issue. The API at app.salesys.se needs to allow requests from your origin.', 'error');
+      console.error(err);
+    });
+  </script>
+</body>
+
+
+<script>
+
+
+</script>
+
+
+</html>

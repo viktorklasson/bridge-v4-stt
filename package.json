@@ -1,0 +1,19 @@
+{
+  "name": "bridge-v3",
+  "version": "1.0.0",
+  "description": "Phone call bridge with ElevenLabs AI agent",
+  "type": "module",
+  "scripts": {
+    "start": "node proxy_server.js",
+    "dev": "node proxy_server.js",
+    "production": "node production-server.js"
+  },
+  "dependencies": {
+    "@11labs/client": "^0.2.0",
+    "@elevenlabs/client": "^0.7.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.5",
+    "puppeteer": "^21.11.0"
+  }
+}

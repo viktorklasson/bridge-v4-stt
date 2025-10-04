@@ -1,0 +1,915 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bridge v3 - Phone Dialer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .status {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .status.info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+    }
+    .status.error {
+      background: #ffebee;
+      border-left: 4px solid #f44336;
+    }
+    .status.success {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf50;
+    }
+    .call-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fafafa;
+      border-radius: 4px;
+    }
+    .call-info p {
+      margin: 5px 0;
+    }
+    .audio-monitor {
+      margin-top: 20px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+    }
+    .audio-monitor h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: #333;
+    }
+    .audio-level {
+      margin: 15px 0;
+    }
+    .audio-level-label {
+      font-size: 14px;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .audio-level-bar {
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+    }
+    .audio-level-fill {
+      height: 100%;
+      background: linear-gradient(to right, #4caf50, #8bc34a, #ffeb3b, #ff9800, #f44336);
+      width: 0%;
+      transition: width 0.1s ease-out;
+    }
+    .audio-level-value {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
+    }
+    .audio-status {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+      margin-left: 10px;
+    }
+    .audio-status.active {
+      background: #4caf50;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>📞 Bridge v3 - Phone Dialer</h1>
+    
+    <button id="start-button" style="padding: 15px 30px; font-size: 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 20px;">
+      🚀 START BRIDGE (Click to enable audio)
+    </button>
+    
+    <div class="call-info">
+      <p><strong>Calling:</strong> <span id="numberToCall">+46737606800</span></p>
+      <p><strong>From:</strong> <span id="numberToCallFrom">+46775893847</span></p>
+    </div>
+    
+    <div class="audio-monitor">
+      <h3>🎵 Audio Levels Monitor</h3>
+      <p style="font-size: 12px; color: #666; margin: 5px 0 15px 0;">
+        <strong>Audio Flow:</strong> Phone Call (You) → AI Agent → Remote Party<br>
+        <em>AI hears your phone audio and responds to the remote party</em>
+      </p>
+      
+      <div class="audio-level">
+        <div class="audio-level-label">
+          🎤 Phone Audio → AI Agent
+          <span class="audio-status" id="phone-to-agent-status"></span>
+        </div>
+        <div class="audio-level-bar">
+          <div class="audio-level-fill" id="phone-to-agent-level"></div>
+          <div class="audio-level-value" id="phone-to-agent-value">0%</div>
+        </div>
+      </div>
+      
+      <div class="audio-level">
+        <div class="audio-level-label">
+          🔊 AI Agent → Remote Party
+          <span class="audio-status" id="agent-to-phone-status"></span>
+        </div>
+        <div class="audio-level-bar">
+          <div class="audio-level-fill" id="agent-to-phone-level"></div>
+          <div class="audio-level-value" id="agent-to-phone-value">0%</div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="status-container"></div>
+  </div>
+
+  <script src="https://app.salesys.se/libs/easytelecom/jquery-2.1.1.min.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/jquery.json-2.4.min.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/verto-min-0.0.2.js"></script>
+  <script src="https://app.salesys.se/libs/easytelecom/media-device-id.min.js"></script>
+  <script src="/virtual-audio-source.js"></script>
+  <script src="/elevenlabs-bridge.js"></script>
+  <audio autoplay hidden id="audio-stream"></audio>
+
+
+  <script defer>
+    const salesysToken = "support-sIwDiiop+cQtkP4fJ2vDyheXSNskx6DaXVZOBKw3X5DI+n58afHg1POjnDWTLqnrsUTgJC3i+kdPriV2lD0XbIKtPOzDsOW5ypVh0B3uQP5vSoTk9ARzfFtnukvTuC3bWsi4D8H7oyDkIbBu301lQgun+bEY1GKm9Dyo8xK5M25w3/BkV+53OPymN88p0nF0HnKfEE7A/HoK+GlW8EHWRuKNAJtVLDglh1MJOb1gB6135knu4TQQ4lUUVghCCZRplthiEFhNTFneNXFa7f0U7pu3eG74M8zpOWzVEbz8h5CsNE496vEMD/eCHP9HcL3LV+3fa9a7uOHmtYGGEdbGNHVaFniCtpUUC64VbQPLcBXEFV9t1pNV6HgiSbQfq/3fcUDLyjjSu/1+WyOO4+9x3qeHdg8gHOEj8En3edCDiwTy8NPlc1V/zwMoigaX1rMBW4+XU/b4c+9KOMsJs3+2QhY5KZ0XXvEgr1NgujRQlnrhUx0rsZ9Z6fzF3srJJlH7Rl6SCiqQWQmk9LIRxL9gYCwYDXJ4FcxEU44swyGhHm58weM/U7iXSwhTaUieo/Pr6ewxrzR74CGW/x5mrUwT6Tl5HPuX0CdmV5Tand1G05K4uKQMjVYqbLQ05NOoxWwTAAZuIUD53z/EpZresXHHE+tSCpJ9AK5fUzXlarVVzks=";
+
+    const numberToCall = "+46737606800";
+    const numberToCallFrom = "+46775893847";
+
+    // ElevenLabs configuration
+    const elevenLabsConfig = {
+      agentId: 'agent_5901k6ecb9epfwhrn82qgkhg0qtw',
+      apiKey: 'sk_76e79a417321b8856248e1a6d8b50cabc92463b528727e34'
+    };
+
+    // Telnect recording configuration
+    const telnectConfig = {
+      apiUrl: '/proxy/telnect/api/v1', // Use proxy to avoid CORS
+      bearerToken: 'NnoXdRRU8hAvoFVfxxo2JwyF80ukM5rF0rcAksJl'
+    };
+
+    let elevenLabsBridge = null;
+    let phoneAudioStream = null;
+    let virtualAudioSource = null;
+    let currentCallId = null; // Store the call ID for recording control
+    
+    // Audio level tracking for decay
+    let lastPhoneLevel = 0;
+    let lastAgentLevel = 0;
+    
+    // Pre-create audio context for synthetic stream (avoid user gesture requirement)
+    let syntheticStreamContext = null;
+    let syntheticStreamDestination = null;
+
+    // Create virtual audio source (this will be the "microphone" for AI audio)
+    // Using 48kHz to match both phone system and ElevenLabs
+    virtualAudioSource = new VirtualAudioSource(48000);
+    
+    // Pre-create the synthetic stream context to avoid user gesture issues
+    try {
+      syntheticStreamContext = new AudioContext({ sampleRate: 48000 });
+      syntheticStreamDestination = syntheticStreamContext.createMediaStreamDestination();
+      console.log('[Bridge] Pre-created synthetic stream context for headless operation');
+    } catch (e) {
+      console.warn('[Bridge] Could not pre-create context:', e);
+    }
+    
+    // Add initial silence to keep stream active
+    virtualAudioSource.addSilence(100);
+    setInterval(() => {
+      if (virtualAudioSource && !virtualAudioSource.playing) {
+        virtualAudioSource.addSilence(50); // Keep alive with silence
+      }
+    }, 5000);
+    
+    addStatus('✓ Virtual audio source created for AI→Phone bridge', 'success');
+
+    // Store reference to real microphone stream when Verto requests it
+    let vertoMicrophoneStream = null;
+    let phoneToAIStream = null; // Synthetic stream for bridging phone to AI
+    
+    // Monkey-patch getUserMedia for HEADLESS operation (no SDK, just Verto)
+    const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async function(constraints) {
+      console.log('[Bridge] getUserMedia intercepted (Verto):', constraints);
+      
+      if (constraints && constraints.audio) {
+        // Verto wants audio - give it virtual audio (AI output → Remote Party)
+        console.log('[Bridge] → Returning VIRTUAL audio source (headless bridge)');
+        addStatus('📡 Verto: using virtual audio (AI→Phone)', 'info');
+        return virtualAudioSource.getMediaStream();
+      }
+      
+      return originalGetUserMedia(constraints);
+    };
+
+    // Helper function to add status messages
+    function addStatus(message, type = 'info') {
+      const container = document.getElementById('status-container');
+      const statusDiv = document.createElement('div');
+      statusDiv.className = `status ${type}`;
+      statusDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+      container.appendChild(statusDiv);
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    // Helper function to update audio levels
+    function updateAudioLevel(direction, level) {
+      const fillElement = document.getElementById(`${direction}-level`);
+      const valueElement = document.getElementById(`${direction}-value`);
+      const statusElement = document.getElementById(`${direction}-status`);
+      
+      if (fillElement && valueElement && statusElement) {
+        fillElement.style.width = `${level}%`;
+        valueElement.textContent = `${level}%`;
+        
+        // Update status indicator (active if level > 5%)
+        if (level > 5) {
+          statusElement.classList.add('active');
+        } else {
+          statusElement.classList.remove('active');
+        }
+      }
+      
+      // Store last levels
+      if (direction === 'phone-to-agent') {
+        lastPhoneLevel = level;
+      } else if (direction === 'agent-to-phone') {
+        lastAgentLevel = level;
+      }
+    }
+    
+    // Decay audio levels over time for smooth visualization
+    setInterval(() => {
+      // Decay phone level
+      if (lastPhoneLevel > 0) {
+        lastPhoneLevel = Math.max(0, lastPhoneLevel - 3);
+        const fillElement = document.getElementById('phone-to-agent-level');
+        const valueElement = document.getElementById('phone-to-agent-value');
+        if (fillElement && valueElement) {
+          fillElement.style.width = `${lastPhoneLevel}%`;
+          valueElement.textContent = `${lastPhoneLevel}%`;
+        }
+      }
+      
+      // Decay agent level
+      if (lastAgentLevel > 0) {
+        lastAgentLevel = Math.max(0, lastAgentLevel - 3);
+        const fillElement = document.getElementById('agent-to-phone-level');
+        const valueElement = document.getElementById('agent-to-phone-value');
+        if (fillElement && valueElement) {
+          fillElement.style.width = `${lastAgentLevel}%`;
+          valueElement.textContent = `${lastAgentLevel}%`;
+        }
+      }
+    }, 100); // Update every 100ms
+
+    // Helper function to start call recording via Telnect API
+    async function startRecording(callId) {
+      if (!callId) {
+        console.error('[Recording] No call ID provided');
+        return;
+      }
+
+      try {
+        addStatus(`🔴 Starting recording for call ${callId}...`, 'info');
+        
+        const response = await fetch(`${telnectConfig.apiUrl}/Calls/${callId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${telnectConfig.bearerToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            actions: [
+              {
+                action: 'recording_start'
+              }
+            ]
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          addStatus('✓ Recording started successfully', 'success');
+          console.log('[Recording] Started for call:', callId, 'Response:', result);
+        } else {
+          const errorText = await response.text();
+          addStatus(`⚠️ Failed to start recording: ${response.status}`, 'error');
+          console.error('[Recording] Error:', response.status, errorText);
+          
+          // Try to parse error as JSON for better debugging
+          try {
+            const errorJson = JSON.parse(errorText);
+            console.error('[Recording] Error details:', errorJson);
+            addStatus(`Error details: ${JSON.stringify(errorJson)}`, 'error');
+          } catch (e) {
+            // Not JSON, already logged as text
+          }
+        }
+      } catch (error) {
+        addStatus(`❌ Recording error: ${error.message}`, 'error');
+        console.error('[Recording] Exception:', error);
+      }
+    }
+
+    // Helper function to stop call recording via Telnect API
+    async function stopRecording(callId) {
+      if (!callId) {
+        console.error('[Recording] No call ID provided');
+        return;
+      }
+
+      try {
+        addStatus(`⏹️ Stopping recording for call ${callId}...`, 'info');
+        
+        const response = await fetch(`${telnectConfig.apiUrl}/Calls/${callId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${telnectConfig.bearerToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            actions: [{
+              action: 'recording_stop'
+            }]
+          })
+        });
+
+        if (response.ok) {
+          addStatus('✓ Recording stopped successfully', 'success');
+          console.log('[Recording] Stopped for call:', callId);
+        } else {
+          const errorText = await response.text();
+          addStatus(`⚠️ Failed to stop recording: ${response.status}`, 'error');
+          console.error('[Recording] Error:', response.status, errorText);
+        }
+      } catch (error) {
+        addStatus(`❌ Recording stop error: ${error.message}`, 'error');
+        console.error('[Recording] Exception:', error);
+      }
+    }
+
+    addStatus('👆 Click START BRIDGE button to begin', 'info');
+    
+    // Button click handler to start everything (provides user gesture)
+    document.getElementById('start-button').addEventListener('click', async () => {
+      const button = document.getElementById('start-button');
+      button.disabled = true;
+      button.textContent = '⏳ Starting...';
+      button.style.background = '#999';
+      
+      addStatus('Starting Bridge v3...', 'info');
+      addStatus('Resuming audio contexts...', 'info');
+      
+      // Resume all audio contexts with user gesture
+      try {
+        if (virtualAudioSource && virtualAudioSource.audioContext) {
+          await virtualAudioSource.audioContext.resume();
+          console.log('[Bridge] Virtual audio context resumed');
+        }
+        if (syntheticStreamContext) {
+          await syntheticStreamContext.resume();
+          console.log('[Bridge] Synthetic stream context resumed');
+        }
+        addStatus('✓ Audio contexts active', 'success');
+      } catch (e) {
+        console.warn('[Bridge] Could not resume contexts:', e);
+      }
+      
+      button.textContent = '✅ Bridge Active';
+      button.style.background = '#4caf50';
+      
+      startBridge();
+    });
+    
+    function startBridge() {
+      addStatus('Attempting to login to Salesys API...', 'info');
+
+    // Use proxy to avoid CORS issues
+    fetch("/proxy/api/dial/easytelecom-v1/login", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + salesysToken
+      }
+    }).then(res => {
+      if (!res.ok) {
+        throw new Error(`Login failed: ${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    }).then(login => {
+      addStatus('✓ Successfully logged in to Salesys', 'success');
+      addStatus('Initializing Verto connection...', 'info');
+      
+      const verto = new $.verto({
+        login: `${login.username}@${login.domain}`,
+        passwd: login.password,
+        iceServers: true,
+        socketUrl: login.url,
+        tag: "audio-stream"
+      }, {
+        onRemoteStream: stream => {
+          console.debug("onRemoteStream", stream);
+          addStatus('📞 Incoming audio stream from remote party', 'success');
+          
+          // This is the audio FROM the remote party (what you HEAR)
+          phoneAudioStream = stream;
+          
+          console.log('[Audio] Remote party stream received:', {
+            id: stream.id,
+            active: stream.active,
+            audioTracks: stream.getAudioTracks().length
+          });
+          
+          // Connect audio element but MUTE it (we don't want to play it in browser)
+          // The audio goes to the AI bridge instead
+          const audioElement = document.getElementById('audio-stream');
+          if (audioElement) {
+            audioElement.srcObject = stream;
+            audioElement.muted = true; // MUTE - audio goes to AI, not speakers!
+            audioElement.play().catch(e => console.log('[Audio] Autoplay prevented:', e));
+            console.log('[Audio] ✅ Phone audio muted in browser (routed to AI instead)');
+            addStatus('🔇 Phone audio muted (routing to AI)', 'success');
+          }
+          
+          // Monitor incoming audio levels
+          const monitorContext = new AudioContext();
+          const monitorSource = monitorContext.createMediaStreamSource(stream);
+          const monitorAnalyser = monitorContext.createAnalyser();
+          monitorSource.connect(monitorAnalyser);
+          
+          const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
+          setInterval(() => {
+            monitorAnalyser.getByteFrequencyData(monitorData);
+            const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
+            if (avg > 5) {
+              console.log('[Audio] Remote party speaking - level:', Math.round(avg));
+            }
+          }, 2000);
+          
+          const audioTrack = stream.getAudioTracks()[0];
+          if (audioTrack) {
+            const settings = audioTrack.getSettings();
+            const capabilities = audioTrack.getCapabilities ? audioTrack.getCapabilities() : {};
+            const constraints = audioTrack.getConstraints ? audioTrack.getConstraints() : {};
+            
+            console.log('Audio track:', audioTrack);
+            console.log('Audio settings:', JSON.stringify(settings, null, 2));
+            console.log('Audio capabilities:', JSON.stringify(capabilities, null, 2));
+            console.log('Audio constraints:', JSON.stringify(constraints, null, 2));
+            console.table(settings);
+            console.table(capabilities);
+            
+            // Try to get sample rate from different sources
+            const sampleRate = settings.sampleRate || 
+                              (capabilities.sampleRate && capabilities.sampleRate.max) || 
+                              '48000 (default)';
+            const channels = settings.channelCount || 1;
+            
+            addStatus(`🎵 Audio: ${sampleRate}Hz, ${channels} channel(s)`, 'info');
+            
+            // Also try to get info from AudioContext
+            const audioElement = document.getElementById('audio-stream');
+            if (audioElement && audioElement.srcObject) {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              addStatus(`🎵 AudioContext sample rate: ${audioCtx.sampleRate}Hz`, 'info');
+            }
+          }
+        },
+        onWSClose: () => {
+          console.debug("onWSClose");
+          addStatus('WebSocket connection closed', 'error');
+        },
+        onMessage: (verto, call, type) => {
+          console.debug("onMessage", type);
+          addStatus(`Message received: ${type.name}`, 'info');
+
+          if (type.name === "clientReady") {
+            addStatus('Client ready, creating call to "park"...', 'info');
+            verto.newCall({
+              caller_id_name: null,
+              caller_id_number: null,
+              destination_number: "park",
+              useStereo: false,
+              useVideo: false
+            });
+          }
+          
+          // When we get "display" event, it typically means call progress/answered
+          // Wait a bit to ensure the remote party has fully answered
+          if (type.name === "display" && !elevenLabsBridge && phoneAudioStream) {
+            addStatus('📞 Call appears to be answered, starting recording and AI agent...', 'success');
+            
+            // Start recording immediately when call is answered
+            if (currentCallId) {
+              startRecording(currentCallId);
+            }
+            
+            // Wait 3 seconds before starting AI agent to ensure call is fully established
+            setTimeout(() => {
+              initializeElevenLabsBridge();
+            }, 3000);
+          }
+        },
+        onDialogState: async (call) => {
+          console.log("onDialogState", call);
+          
+          // Format call state nicely
+          const stateInfo = {
+            state: call.state,
+            direction: call.direction,
+            callId: call.callID
+          };
+          
+          addStatus(`Call state: ${JSON.stringify(stateInfo, null, 2)}`, 'info');
+
+          if (call.state === $.verto.enum.state.active) {
+            addStatus('Call is active! Now dialing actual number...', 'success');
+            
+            // Store the call ID for later use (recording, etc.)
+            currentCallId = call.params.variables.verto_svar_api_callid;
+            console.log('[Call] Stored call ID:', currentCallId);
+            
+            fetch("/proxy/api/dial/easytelecom-v1/call", {
+              method: "POST",
+              headers: {
+                "Authorization": "Bearer " + salesysToken,
+                "Content-type": "application/json"
+              },
+              body: JSON.stringify({
+                "destinationPhoneNumber": numberToCall,
+                "callerPhoneNumber": numberToCallFrom,
+                "easyTelecomUserCallId": currentCallId
+              })
+            })
+            .then(res => {
+              if (res.ok) {
+                addStatus(`✓ Call initiated to ${numberToCall}`, 'success');
+                addStatus(`⏳ Waiting for remote party to answer before starting AI agent...`, 'info');
+                
+                // DON'T initialize yet - wait for the call to be answered
+                // We'll do this in the onMessage handler when we see "display" event
+              } else {
+                addStatus(`Failed to initiate call: ${res.status}`, 'error');
+              }
+            })
+            .catch(err => {
+              addStatus(`Error initiating call: ${err.message}`, 'error');
+            });
+          }
+          
+          // Terminate ElevenLabs agent and stop recording on hangup
+          if (call.state === $.verto.enum.state.hangup) {
+            addStatus('📞 Call ended, stopping recording and terminating AI agent...', 'info');
+            
+            // Stop recording
+            if (currentCallId) {
+              stopRecording(currentCallId);
+              currentCallId = null; // Clear the call ID
+            }
+            
+            // Terminate AI agent (using SDK)
+            if (elevenLabsBridge) {
+              try {
+                await elevenLabsBridge.endSession();
+                addStatus('✓ AI agent terminated successfully', 'success');
+                elevenLabsBridge = null;
+              } catch (err) {
+                console.error('Error terminating AI agent:', err);
+                addStatus(`⚠️ Error terminating AI agent: ${err.message}`, 'error');
+              }
+            }
+          }
+        },
+        onEvent: (verto, event, data) => {
+          console.debug("onEvent", event, data);
+          addStatus(`Event: ${event}`, 'info');
+        },
+        onWSLogin: () => {
+          console.debug("onWSLogin");
+          addStatus('✓ WebSocket logged in successfully', 'success');
+        }
+      });
+
+      addStatus('Attempting Verto login...', 'info');
+      verto.login();
+
+    })
+    .catch(err => {
+      addStatus(`❌ Error: ${err.message}`, 'error');
+      addStatus('This is likely a CORS issue. The API at app.salesys.se needs to allow requests from your origin.', 'error');
+      console.error(err);
+    });
+
+    // Diagnostics
+    function logAudioDiagnostics() {
+      console.log('=== AUDIO DIAGNOSTICS ===');
+      console.log('Phone stream:', phoneAudioStream);
+      console.log('Phone stream tracks:', phoneAudioStream?.getTracks());
+      console.log('Virtual audio source:', virtualAudioSource);
+      console.log('Virtual stream:', virtualAudioSource?.getMediaStream());
+      console.log('Virtual stream tracks:', virtualAudioSource?.getMediaStream().getTracks());
+      console.log('ElevenLabs bridge:', elevenLabsBridge);
+      console.log('Virtual audio queue length:', virtualAudioSource?.queueLength);
+      console.log('Virtual audio playing:', virtualAudioSource?.playing);
+      console.log('========================');
+    }
+
+    // Make diagnostics available globally
+    window.logAudioDiagnostics = logAudioDiagnostics;
+
+    // Audio bridge workers
+    let phoneCaptureProcessor = null;
+    let aiOutputCaptureNode = null;
+    let aiAudioContext = null;
+
+    // Function to initialize ElevenLabs using CUSTOM WebSocket bridge (headless)
+    async function initializeElevenLabsBridge() {
+      if (!phoneAudioStream) {
+        addStatus('⚠️ Phone audio stream not available', 'error');
+        return;
+      }
+
+      if (!elevenLabsConfig.agentId || elevenLabsConfig.agentId === 'YOUR_AGENT_ID_HERE') {
+        addStatus('⚠️ ElevenLabs agent ID not configured', 'error');
+        return;
+      }
+
+      try {
+        addStatus('🤖 Initializing ElevenLabs bridge (HEADLESS)...', 'info');
+        console.log('=== Using Custom ElevenLabs Bridge (No SDK) ===');
+
+        // Create custom bridge instance
+        elevenLabsBridge = new ElevenLabsBridge({
+          agentId: elevenLabsConfig.agentId,
+          apiKey: elevenLabsConfig.apiKey,
+          virtualAudioSource: virtualAudioSource,
+          onStatusChange: (status, error) => {
+            console.log('[Bridge] Status:', status);
+            if (status === 'websocket_connected') {
+              addStatus('✓ WebSocket connected', 'success');
+            } else if (status === 'conversation_ready') {
+              addStatus('✅ Conversation ready!', 'success');
+            } else if (status === 'connected') {
+              addStatus('✓ ElevenLabs connected', 'success');
+            } else if (status === 'error') {
+              addStatus(`❌ Error: ${error?.message}`, 'error');
+            } else if (status === 'disconnected') {
+              addStatus('Disconnected', 'info');
+            }
+          },
+          onAgentMessage: (message) => {
+            addStatus(`🤖 AI: ${message}`, 'info');
+          },
+          onAudioLevel: (direction, level) => {
+            updateAudioLevel(direction, level);
+          }
+        });
+
+        // Initialize with phone audio stream (HEADLESS!)
+        await elevenLabsBridge.initialize(phoneAudioStream);
+        addStatus('✅ Headless bridge active!', 'success');
+        console.log('[Bridge] Phone audio → AI → Phone (fully headless)');
+
+      } catch (error) {
+        addStatus(`❌ Failed: ${error.message}`, 'error');
+        console.error('[Bridge] Error:', error);
+      }
+    }
+
+    // No longer needed - custom bridge handles everything
+    async function startAudioBridge() {
+      console.log('[Bridge] Audio bridge handled by ElevenLabsBridge class');
+
+      // Monitor input audio levels (phone → AI)
+      const monitorInput = () => {
+        if (!elevenLabsBridge || !elevenLabsBridge.getInputByteFrequencyData) return;
+        
+        try {
+          const inputData = elevenLabsBridge.getInputByteFrequencyData();
+          if (inputData) {
+            const average = inputData.reduce((a, b) => a + b) / inputData.length;
+            const level = Math.min(100, Math.round(average / 2.55));
+            updateAudioLevel('phone-to-agent', level);
+          }
+        } catch (e) {
+          // SDK method not ready yet
+        }
+      };
+      setInterval(monitorInput, 100);
+
+      // Monitor output audio levels and capture to route to phone
+      const monitorAndCaptureOutput = () => {
+        if (!elevenLabsBridge || !elevenLabsBridge.getOutputByteFrequencyData) return;
+        
+        try {
+          const outputData = elevenLabsBridge.getOutputByteFrequencyData();
+          if (outputData) {
+            const average = outputData.reduce((a, b) => a + b) / outputData.length;
+            const level = Math.min(100, Math.round(average / 2.55));
+            updateAudioLevel('agent-to-phone', level);
+            
+            // If AI is speaking (level > threshold), add audio to virtual source
+            if (level > 10) {
+              // Generate silence as placeholder - the SDK handles actual audio
+              // This just keeps the virtual audio stream alive
+              if (virtualAudioSource && !virtualAudioSource.playing) {
+                virtualAudioSource.addSilence(20);
+              }
+            }
+          }
+        } catch (e) {
+          // SDK method not ready yet
+        }
+      };
+      setInterval(monitorAndCaptureOutput, 100);
+
+      addStatus('✓ Audio bridge monitoring active', 'success');
+      console.log('[Bridge] Monitoring audio levels from SDK');
+      
+      // Try to route SDK output to virtual audio
+      // The SDK doesn't natively support custom output routing, so we'll need
+      // to capture the audio element it creates
+      setTimeout(() => {
+        tryCaptureSdkAudioOutput();
+      }, 1000);
+    }
+
+    function tryCaptureSdkAudioOutput() {
+      // Find any audio elements the SDK might have created
+      const audioElements = document.querySelectorAll('audio');
+      console.log('[Bridge] Searching for SDK audio elements...', audioElements.length, 'total');
+      
+      let foundSdkAudio = false;
+      
+      audioElements.forEach((audio, index) => {
+        console.log('[Bridge] Audio element #' + index + ':', {
+          id: audio.id,
+          hasSrcObject: !!audio.srcObject,
+          tagName: audio.tagName
+        });
+        
+        if (audio.srcObject && audio.id !== 'audio-stream') {
+          console.log('[Bridge] ✅ Found SDK audio element!', audio);
+          foundSdkAudio = true;
+          
+          // Capture this audio and route to virtual source
+          try {
+            console.log('[Bridge] Audio element details:', {
+              muted: audio.muted,
+              volume: audio.volume,
+              paused: audio.paused,
+              srcObject: audio.srcObject
+            });
+            
+            // Try to capture from the MediaStream directly instead of the audio element
+            if (audio.srcObject && audio.srcObject.getAudioTracks) {
+              console.log('[Bridge] Using MediaStream capture (better approach)');
+              const stream = audio.srcObject;
+              const captureContext = new AudioContext({ sampleRate: 48000 });
+              
+              // Resume context
+              captureContext.resume().then(() => {
+                console.log('[Bridge] Audio context state:', captureContext.state);
+              });
+              
+              console.log('[Bridge] Stream details:', {
+                id: stream.id,
+                active: stream.active,
+                tracks: stream.getAudioTracks().length,
+                trackLabel: stream.getAudioTracks()[0]?.label
+              });
+              
+              const sdkSource = captureContext.createMediaStreamSource(stream);
+              console.log('[Bridge] Created MediaStreamSource from SDK output');
+              
+              // Also create an analyser to verify we're getting audio
+              const analyser = captureContext.createAnalyser();
+              sdkSource.connect(analyser);
+              
+              const processor = captureContext.createScriptProcessor(4096, 1, 1);
+              
+              // Debug: Check if analyser shows audio
+              const testData = new Uint8Array(analyser.frequencyBinCount);
+              setInterval(() => {
+                analyser.getByteFrequencyData(testData);
+                const avg = testData.reduce((a, b) => a + b) / testData.length;
+                if (avg > 0) {
+                  console.log('[Bridge] ✅ ANALYSER DETECTING AUDIO! Level:', avg);
+                }
+              }, 500);
+            
+            let chunksSent = 0;
+            let processorCallCount = 0;
+            
+            processor.onaudioprocess = (e) => {
+              processorCallCount++;
+              
+              if (processorCallCount === 1) {
+                console.log('[Bridge] ✅ ScriptProcessor ACTIVE - audio routing started!');
+              }
+              
+              const audioData = e.inputBuffer.getChannelData(0);
+              
+              // Check if there's actual audio
+              const hasAudio = audioData.some(s => Math.abs(s) > 0.01);
+              
+              if (hasAudio) {
+                chunksSent++;
+                if (chunksSent === 1 || chunksSent % 10 === 0) {
+                  console.log('[Bridge] 🔊 Routing AI audio chunk #' + chunksSent + ' to phone!');
+                }
+                
+                // Convert to PCM16 and send to virtual audio
+                const pcm16 = new Int16Array(audioData.length);
+                for (let i = 0; i < audioData.length; i++) {
+                  const s = Math.max(-1, Math.min(1, audioData[i]));
+                  pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                
+                virtualAudioSource.addAudioData(pcm16);
+              } else if (processorCallCount % 50 === 0) {
+                console.log('[Bridge] Processor running but no audio detected yet...');
+              }
+            };
+            
+              console.log('[Bridge] Connecting audio nodes...');
+              // Connect: Source → Analyser → Processor → Destination
+              analyser.connect(processor);
+              processor.connect(captureContext.destination);
+              
+              console.log('[Bridge] Audio pipeline: MediaStream → Analyser → Processor → Destination');
+              console.log('[Bridge] Audio nodes connected successfully!');
+              
+              addStatus('✅ SDK audio captured → routing to phone!', 'success');
+              console.log('[Bridge] 🎧 AI audio pipeline: MediaStream → Virtual Audio → Phone');
+            } else {
+              console.error('[Bridge] No srcObject.getAudioTracks available');
+            }
+          } catch (err) {
+            console.error('[Bridge] ❌ Failed to capture SDK audio:', err);
+            addStatus(`⚠️ Audio capture error: ${err.message}`, 'error');
+          }
+        }
+      });
+      
+      if (!foundSdkAudio) {
+        console.warn('[Bridge] No SDK audio element found yet, will retry...');
+        setTimeout(tryCaptureSdkAudioOutput, 2000); // Retry in 2 seconds
+      }
+    }
+
+    function stopAudioBridge() {
+      console.log('[Bridge] Stopping audio bridge');
+      // Cleanup handled by SDK
+    }
+
+    } // End of startBridge function
+
+    // Add button to run diagnostics
+    console.log('💡 TIP: Run window.logAudioDiagnostics() to see detailed audio status');
+  </script>
+</body>
+
+
+<script>
+
+
+</script>
+
+
+</html>
