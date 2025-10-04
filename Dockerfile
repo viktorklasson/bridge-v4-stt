@@ -30,11 +30,11 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and npmrc
+COPY package*.json .npmrc ./
 
-# Install dependencies (skip Puppeteer's Chromium download since we installed Chromium)
-RUN PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm ci --only=production
+# Install dependencies (npmrc tells Puppeteer to skip Chromium download)
+RUN npm ci --only=production
 
 # Copy application files
 COPY . .
