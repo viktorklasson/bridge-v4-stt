@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: elevenlabs-bridge
+    env: docker
+    region: frankfurt  # European server
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DISPLAY
+        value: ":99"
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/google-chrome-stable
+    healthCheckPath: /
