@@ -173,6 +173,11 @@ async function handleWebhook(req, res) {
               clearInterval(cleanupInterval);
               await page.close();
               activeBridges.delete(webhook.id);
+              
+              // Clear deduplication immediately so new calls can come through
+              processedWebhooks.delete(webhook.id);
+              processedWebhooks.delete(activeCallKey);
+              console.log('[WEBHOOK] Cleared deduplication for:', callerNumber);
             }
           } catch (e) {
             clearInterval(cleanupInterval);
