@@ -698,9 +698,11 @@
               }, 1000); // Wait 1 second for park call to establish (reduced for faster response)
               
             } else {
-              // Outbound call mode (original flow)
-              addStatus('Call is active! Now dialing actual number...', 'success');
+              // Outbound call mode (disabled - only use inbound webhook mode)
+              console.log('[Call] Outbound mode disabled - this should only run in inbound webhook mode');
+              addStatus('⚠️ Outbound mode not configured', 'info');
               
+              /* Disabled outbound calling
               fetch("/proxy/api/dial/easytelecom-v1/call", {
                 method: "POST",
                 headers: {
@@ -727,6 +729,7 @@
               .catch(err => {
                 addStatus(`Error initiating call: ${err.message}`, 'error');
               });
+              */
             }
           }
           
