@@ -862,6 +862,10 @@
           }
         });
 
+        // Expose bridge globally for context updates API
+        window.elevenLabsBridge = elevenLabsBridge;
+        console.log('[Bridge] Bridge exposed globally for context updates');
+
         // Initialize with phone audio stream (HEADLESS!)
         await elevenLabsBridge.initialize(phoneAudioStream);
         addStatus('✅ Headless bridge active!', 'success');

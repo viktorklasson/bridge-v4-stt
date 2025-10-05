@@ -50,9 +50,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Check if this is a webhook request (for testing)
+  // Check if this is a webhook request
   if (req.url === '/webhook/inbound-call' && req.method === 'POST') {
     handleWebhook(req, res);
+  }
+  // Check if this is a context update request
+  else if (req.url.startsWith('/api/context/') && req.method === 'POST') {
+    handleContextUpdate(req, res);
+  }
+  // List active calls
+  else if (req.url === '/api/calls' && req.method === 'GET') {
+    listActiveCalls(req, res);
   }
   // Check if this is a proxy request
   else if (req.url.startsWith('/proxy/salesys/')) {
@@ -154,7 +162,11 @@ async function handleWebhook(req, res) {
         console.log('[WEBHOOK] ✅ Bridge page loaded');
         
         // Store the page reference
-        activeBridges.set(webhook.id, { page, timestamp: Date.now() });
+        activeBridges.set(webhook.id, { 
+          page, 
+          timestamp: Date.now(),
+          callerNumber: webhook.number?.caller
+        });
         
         // Monitor page console for debugging
         page.on('console', msg => {
@@ -203,6 +215,64 @@ async function handleWebhook(req, res) {
       res.end(JSON.stringify({ error: error.message }));
     }
   });
+}
+
+async function handleContextUpdate(req, res) {
+  const callId = req.url.split('/api/context/')[1].split('?')[0];
+  
+  let body = [];
+  req.on('data', chunk => body.push(chunk));
+  
+  req.on('end', async () => {
+    try {
+      body = Buffer.concat(body).toString();
+      const update = JSON.parse(body);
+      
+      console.log('[CONTEXT] Update for call:', callId, 'Type:', update.type, 'Text:', update.text || '(none)');
+      
+      const bridge = activeBridges.get(callId);
+      
+      if (!bridge) {
+        console.log('[CONTEXT] Call not found:', callId);
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Call not found or already ended', callId }));
+        return;
+      }
+      
+      // Send update to ElevenLabs via page evaluation
+      await bridge.page.evaluate((updateData) => {
+        if (window.elevenLabsBridge && window.elevenLabsBridge.ws && window.elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
+          window.elevenLabsBridge.ws.send(JSON.stringify(updateData));
+          console.log('[Context] Sent to AI:', updateData);
+          return true;
+        } else {
+          console.error('[Context] Bridge WebSocket not available');
+          return false;
+        }
+      }, update);
+      
+      console.log('[CONTEXT] ✅ Update sent successfully');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, callId, updateType: update.type }));
+      
+    } catch (error) {
+      console.error('[CONTEXT] Error:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  });
+}
+
+function listActiveCalls(req, res) {
+  const calls = Array.from(activeBridges.entries()).map(([id, bridge]) => ({
+    callId: id,
+    callerNumber: bridge.callerNumber,
+    durationSeconds: Math.floor((Date.now() - bridge.timestamp) / 1000)
+  }));
+  
+  console.log('[API] Listing active calls:', calls.length);
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ calls, count: calls.length }));
 }
 
 function handleProxy(req, res, targetHost, proxyPrefix) {
