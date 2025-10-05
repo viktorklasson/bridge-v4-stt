@@ -744,9 +744,24 @@
               currentCallId = null; // Clear the call ID
             }
             
-            // Terminate AI agent
+            // Terminate AI agent immediately
             if (elevenLabsBridge) {
               try {
+                console.log('[Call] Terminating AI agent...');
+                
+                // Close WebSocket immediately
+                if (elevenLabsBridge.ws) {
+                  elevenLabsBridge.ws.close();
+                  elevenLabsBridge.ws = null;
+                }
+                
+                // Stop audio processing
+                if (elevenLabsBridge.phoneProcessor) {
+                  elevenLabsBridge.phoneProcessor.disconnect();
+                  elevenLabsBridge.phoneProcessor = null;
+                }
+                
+                // End session
                 await elevenLabsBridge.endSession();
                 addStatus('✓ AI agent terminated successfully', 'success');
                 elevenLabsBridge = null;
