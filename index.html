@@ -757,6 +757,7 @@
             
             // Reset state for next call
             window.inboundCallProcessed = false;
+            window.elevenLabsInitialized = false;
             phoneAudioStream = null;
             
             // Signal Puppeteer to close this tab (for autonomous operation)
@@ -815,6 +816,13 @@
 
     // Function to initialize ElevenLabs using CUSTOM WebSocket bridge (headless)
     async function initializeElevenLabsBridge() {
+      // Prevent multiple AI agent initializations
+      if (window.elevenLabsInitialized) {
+        console.log('[ElevenLabs] Already initialized, skipping duplicate initialization');
+        return;
+      }
+      window.elevenLabsInitialized = true;
+      
       if (!phoneAudioStream) {
         addStatus('⚠️ Phone audio stream not available', 'error');
         return;
