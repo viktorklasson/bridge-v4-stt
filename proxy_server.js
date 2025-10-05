@@ -149,7 +149,6 @@ async function handleWebhook(req, res) {
       }));
       
       // Store call ID and caller number for the waiting browser tab to pick up
-      const callerNumber = webhook.number?.caller || 'unknown';
       const calledNumber = webhook.number?.called || 'unknown';
       const bridgeUrl = `http://localhost:${PORT}/index.html?callId=${webhook.id}&inbound=true&caller=${callerNumber}&called=${calledNumber}`;
       console.log('[WEBHOOK] 📞 Call ready for bridging:', webhook.id);
