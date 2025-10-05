@@ -326,11 +326,12 @@ class ElevenLabsBridge {
           console.log('[ElevenLabs] Metadata:', message);
           
           // CRITICAL: Send client data response with dynamic variables
+          // Dynamic variables are at top level, not nested
           const clientResponse = {
             type: 'conversation_initiation_client_data',
-            client_data: {
-              dynamic_variables: this.customVariables
-            }
+            conversation_config_override: {},
+            custom_llm_extra_body: {},
+            dynamic_variables: this.customVariables
           };
           
           console.log('[ElevenLabs] Sending client response:', JSON.stringify(clientResponse));
