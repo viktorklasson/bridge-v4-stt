@@ -850,6 +850,25 @@
               addStatus('✓ ElevenLabs connected', 'success');
             } else if (status === 'error') {
               addStatus(`❌ Error: ${error?.message}`, 'error');
+            } else if (status === 'error_disconnect') {
+              addStatus('❌ AI agent disconnected unexpectedly - hanging up call', 'error');
+              // Hangup the call via Telnect API
+              if (currentCallId) {
+                fetch(`/proxy/telnect/api/v1/Calls/${currentCallId}`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': 'Bearer ' + telnectToken,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    actions: [{ action: 'hangup' }]
+                  })
+                }).then(() => {
+                  console.log('[Call] Hangup triggered due to AI disconnect');
+                }).catch(err => {
+                  console.error('[Call] Failed to hangup:', err);
+                });
+              }
             } else if (status === 'disconnected') {
               addStatus('Disconnected', 'info');
             }

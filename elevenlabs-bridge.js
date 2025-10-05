@@ -143,6 +143,12 @@ class ElevenLabsBridge {
       this.ws.onclose = (event) => {
         console.log('[ElevenLabs] WebSocket closed - Code:', event.code, 'Reason:', event.reason, 'Clean:', event.wasClean);
         this.onStatusChange('disconnected');
+        
+        // If WebSocket closes unexpectedly, trigger call hangup
+        if (!event.wasClean || event.code !== 1000) {
+          console.error('[ElevenLabs] Unexpected disconnect - will trigger call hangup');
+          this.onStatusChange('error_disconnect');
+        }
       };
 
       // Timeout after 10 seconds
