@@ -93,26 +93,48 @@ async function handleWebhook(req, res) {
       console.log('[WEBHOOK] From:', webhook.number?.caller, '→', webhook.number?.called);
       console.log('[WEBHOOK] Status:', webhook.status);
       
-      // Check if we've already processed this call OR if there's already an active call
-      const callerNumber = webhook.number?.caller;
-      const activeCallKey = `${callerNumber}_active`;
-      
-      if (processedWebhooks.has(webhook.id) || processedWebhooks.has(activeCallKey)) {
-        console.log('[WEBHOOK] ⚠️  Call already being processed, ignoring duplicate webhook');
+      // Check if we've already processed this exact call ID
+      if (processedWebhooks.has(webhook.id)) {
+        console.log('[WEBHOOK] ⚠️  Duplicate webhook for same call ID, ignoring');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
           success: true, 
-          message: 'Webhook acknowledged (already processing)',
+          message: 'Webhook acknowledged (duplicate)',
           callId: webhook.id 
         }));
         return;
+      }
+      
+      // Check if there's already an active call from this number
+      const callerNumber = webhook.number?.caller;
+      const activeCallKey = `${callerNumber}_active`;
+      
+      if (processedWebhooks.has(activeCallKey)) {
+        console.log('[WEBHOOK] 🔄 New call from same number - cleaning up old call');
+        
+        // Find and close the old call's tab
+        for (const [oldCallId, bridge] of activeBridges.entries()) {
+          if (bridge.callerNumber === callerNumber) {
+            console.log('[WEBHOOK] Closing old tab for call:', oldCallId);
+            try {
+              await bridge.page.close();
+              activeBridges.delete(oldCallId);
+              processedWebhooks.delete(oldCallId);
+            } catch (e) {
+              console.log('[WEBHOOK] Old tab already closed');
+            }
+          }
+        }
+        
+        // Clear the old active key
+        processedWebhooks.delete(activeCallKey);
       }
       
       // Mark as processed (both by call ID and by caller number)
       processedWebhooks.add(webhook.id);
       processedWebhooks.add(activeCallKey);
       
-      // Clean up old entries after 2 minutes (shorter timeout)
+      // Clean up old entries after 2 minutes (fallback)
       setTimeout(() => {
         processedWebhooks.delete(webhook.id);
         processedWebhooks.delete(activeCallKey);
