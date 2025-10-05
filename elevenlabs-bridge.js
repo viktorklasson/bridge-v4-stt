@@ -11,6 +11,7 @@ class ElevenLabsBridge {
     this.onStatusChange = config.onStatusChange || (() => {});
     this.onAgentMessage = config.onAgentMessage || (() => {});
     this.onAudioLevel = config.onAudioLevel || (() => {}); // Callback for audio level updates
+    this.customVariables = config.customVariables || {}; // Custom variables to pass to agent
     
     this.ws = null;
     this.audioContext = null;
@@ -324,11 +325,12 @@ class ElevenLabsBridge {
           console.log('[ElevenLabs] ✅ Conversation initialized! Server metadata received.');
           console.log('[ElevenLabs] Metadata:', message);
           
-          // CRITICAL: Send client data response with empty config (use agent defaults)
+          // CRITICAL: Send client data response with dynamic variables
           const clientResponse = {
             type: 'conversation_initiation_client_data',
-            conversation_config_override: {},
-            custom_llm_extra_body: {}
+            client_data: {
+              dynamic_variables: this.customVariables
+            }
           };
           
           console.log('[ElevenLabs] Sending client response:', JSON.stringify(clientResponse));

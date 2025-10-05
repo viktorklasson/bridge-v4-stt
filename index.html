@@ -843,6 +843,11 @@
           agentId: elevenLabsConfig.agentId,
           apiKey: elevenLabsConfig.apiKey,
           virtualAudioSource: virtualAudioSource,
+          customVariables: {
+            call_id: window.inboundCallId || currentCallId || 'unknown',
+            caller_number: new URLSearchParams(window.location.search).get('caller') || 'unknown',
+            called_number: numberToCall
+          },
           onStatusChange: (status, error) => {
             console.log('[Bridge] Status:', status);
             if (status === 'websocket_connected') {
