@@ -363,7 +363,7 @@ function serveFile(req, res) {
   });
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 CORS Proxy Server running at http://localhost:${PORT}`);
   console.log(`📁 Serving files from: ${__dirname}`);
   console.log(`🔄 Proxying API requests:`);
@@ -374,6 +374,20 @@ server.listen(PORT, () => {
   console.log(`🤖 Auto-launches headless browser for each inbound call`);
   console.log(`\nOpen http://localhost:${PORT}/index.html in your browser for manual testing`);
   console.log('\nPress Ctrl+C to stop the server\n');
+  
+  // Clean up any orphaned browser instances on startup
+  if (browser) {
+    console.log('[Server] Closing any existing browser instances...');
+    try {
+      await browser.close();
+      browser = null;
+      activeBridges.clear();
+      processedWebhooks.clear();
+      console.log('[Server] ✅ Cleanup complete');
+    } catch (e) {
+      console.log('[Server] No cleanup needed');
+    }
+  }
 });
 
 // Graceful shutdown
