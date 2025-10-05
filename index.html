@@ -845,8 +845,12 @@
           virtualAudioSource: virtualAudioSource,
           customVariables: {
             call_id: window.inboundCallId || currentCallId || 'unknown',
+            // For inbound: user is caller, for outbound: user is called party
+            user_number: window.inboundCallId ? 
+              (new URLSearchParams(window.location.search).get('caller') || 'unknown') : 
+              (new URLSearchParams(window.location.search).get('called') || 'unknown'),
             caller_number: new URLSearchParams(window.location.search).get('caller') || 'unknown',
-            called_number: numberToCall
+            called_number: new URLSearchParams(window.location.search).get('called') || 'unknown'
           },
           onStatusChange: (status, error) => {
             console.log('[Bridge] Status:', status);
