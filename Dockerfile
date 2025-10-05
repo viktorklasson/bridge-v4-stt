@@ -1,9 +1,10 @@
 # Use Node.js 18 on Ubuntu
 FROM node:18-bullseye
 
-# Install Xvfb and Chromium dependencies (use Debian's Chromium - faster)
+# Install Xvfb, PulseAudio, and Chromium dependencies
 RUN apt-get update && apt-get install -y \
     xvfb \
+    pulseaudio \
     chromium \
     chromium-sandbox \
     fonts-liberation \
@@ -47,5 +48,7 @@ ENV NODE_ENV=production
 # Expose port (Render provides PORT env var)
 EXPOSE 3000
 
-# Start Xvfb and the application
-CMD Xvfb :99 -screen 0 1024x768x24 -nolisten tcp & npm start
+# Start PulseAudio, Xvfb, and the application
+CMD pulseaudio -D --exit-idle-time=-1 && \
+    Xvfb :99 -screen 0 1024x768x24 -nolisten tcp & \
+    npm start
