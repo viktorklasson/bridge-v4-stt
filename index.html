@@ -599,10 +599,10 @@
               startRecording(currentCallId);
             }
             
-            // Wait 3 seconds before starting AI agent to ensure call is fully established
+            // Wait briefly before starting AI agent
             setTimeout(() => {
               initializeElevenLabsBridge();
-            }, 3000);
+            }, 500);
           }
         },
         onDialogState: async (call) => {
@@ -630,7 +630,7 @@
               console.log('[Call] Inbound mode - Park call ID:', currentCallId);
               console.log('[Call] Inbound call to answer:', window.inboundCallId);
               
-              // Wait a bit for park call to fully establish
+              // Wait briefly for park call to establish (reduced for faster response)
               setTimeout(async () => {
                 // Step 1: Answer the incoming call via Telnect API
                 fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
@@ -651,8 +651,8 @@
                   addStatus('✅ Inbound call answered', 'success');
                   
                   // Step 2: Bridge the two calls together
-                  // Wait a bit for answer to complete
-                  return new Promise(resolve => setTimeout(resolve, 1000))
+                  // Wait briefly for answer to complete
+                  return new Promise(resolve => setTimeout(resolve, 500))
                     .then(() => fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
                       method: "POST",
                       headers: {
@@ -683,10 +683,8 @@
                   // Start recording
                   startRecording(currentCallId);
                   
-                  // Start AI agent
-                  setTimeout(() => {
-                    initializeElevenLabsBridge();
-                  }, 1000);
+                  // Start AI agent immediately
+                  initializeElevenLabsBridge();
                 } else {
                   const errorText = await res.text();
                   console.error('[Call] Bridge failed:', res.status, errorText);
@@ -697,7 +695,7 @@
                 console.error('[Call] Error in inbound call flow:', err);
                 addStatus('❌ Failed to bridge inbound call: ' + err.message, 'error');
               });
-              }, 2000); // Wait 2 seconds for park call to establish
+              }, 1000); // Wait 1 second for park call to establish (reduced for faster response)
               
             } else {
               // Outbound call mode (original flow)
