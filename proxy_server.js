@@ -140,12 +140,13 @@ async function handleWebhook(req, res) {
         processedWebhooks.delete(activeCallKey);
       }, 120000);
       
-      // Respond immediately to webhook (don't make Telnect wait)
+      // Respond immediately to webhook with actions
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ 
-        success: true, 
-        message: 'Webhook received - launching bridge',
-        callId: webhook.id 
+        actions: [
+          { action: 'recording_start', param: { mono: 'false' } },
+          { action: 'notify', param: { url: 'https://webhook.site/35f33f22-897f-4003-be6c-e3b469002a19' } }
+        ]
       }));
       
       // Store call ID and caller number for the waiting browser tab to pick up
