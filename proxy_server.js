@@ -140,14 +140,12 @@ async function handleWebhook(req, res) {
         processedWebhooks.delete(activeCallKey);
       }, 120000);
       
-      // Respond immediately to webhook with actions
+      // Respond immediately to webhook with actions array
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ 
-        actions: [
-          { action: 'recording_start', param: { mono: 'false' } },
-          { action: 'notify', param: { url: 'https://webhook.site/35f33f22-897f-4003-be6c-e3b469002a19' } }
-        ]
-      }));
+      res.end(JSON.stringify([
+        { action: 'recording_start', param: { mono: 'false' } },
+        { action: 'notify', param: { url: 'https://webhook.site/35f33f22-897f-4003-be6c-e3b469002a19' } }
+      ]));
       
       // Store call ID and caller number for the waiting browser tab to pick up
       const calledNumber = webhook.number?.called || 'unknown';
