@@ -346,7 +346,7 @@ async function handleNotifyEvent(req, res) {
             try {
               const payload = {
                 ssn: ssn,
-                refId: callId
+                callId: callId
               };
               
               console.log('[SSN] Sending to Fello API:', 'https://fello.link/api/identify-async.php');
