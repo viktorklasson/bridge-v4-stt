@@ -344,7 +344,7 @@ async function handleNotifyEvent(req, res) {
             
             // Send to Fello API
             try {
-              const response = await fetch('https://fello.link/api/fello-identify-v3.php', {
+              const response = await fetch('https://fello.link/api/identify-async.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
