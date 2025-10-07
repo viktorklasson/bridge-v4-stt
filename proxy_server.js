@@ -344,16 +344,22 @@ async function handleNotifyEvent(req, res) {
             
             // Send to Fello API
             try {
+              const payload = {
+                ssn: ssn,
+                refId: callId
+              };
+              
+              console.log('[SSN] Sending to Fello API:', 'https://fello.link/api/identify-async.php');
+              console.log('[SSN] Payload:', JSON.stringify(payload));
+              
               const response = await fetch('https://fello.link/api/identify-async.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ssn: ssn,
-                  refId: callId
-                })
+                body: JSON.stringify(payload)
               });
               
-              console.log('[SSN] Fello API response:', response.status);
+              const responseText = await response.text();
+              console.log('[SSN] Fello API response:', response.status, responseText);
               
               // Send context update to AI
               const bridge = activeBridges.get(callId);
@@ -390,16 +396,32 @@ async function handleNotifyEvent(req, res) {
         // Clean up DTMF buffer
         dtmfBuffer.delete(callId);
         
-        // Trigger cleanup (the page title monitor will handle closing the tab)
+        // Immediately terminate AI and close tab
         const bridge = activeBridges.get(callId);
         if (bridge) {
           try {
+            console.log('[NOTIFY] Terminating AI agent for call:', callId);
+            
+            // Force close AI WebSocket
             await bridge.page.evaluate(() => {
-              // Trigger hangup cleanup in the page
-              if (window.verto && window.currentDialog) {
-                window.currentDialog.hangup();
+              if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
+                window.elevenLabsBridge.ws.close();
+                window.elevenLabsBridge.ws = null;
+                console.log('[Hangup] AI WebSocket closed');
               }
+              
+              // Stop audio processor
+              if (window.elevenLabsBridge && window.elevenLabsBridge.phoneProcessor) {
+                window.elevenLabsBridge.phoneProcessor.disconnect();
+                window.elevenLabsBridge.phoneProcessor = null;
+                console.log('[Hangup] Audio processor stopped');
+              }
+              
+              // Set title for cleanup
+              document.title = 'CALL_ENDED';
             });
+            
+            console.log('[NOTIFY] ✅ AI terminated, tab will close shortly');
           } catch (e) {
             console.log('[NOTIFY] Page already closed');
           }
