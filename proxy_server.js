@@ -23,6 +23,7 @@ if (process.env.DISPLAY) {
 let browser = null;
 const activeBridges = new Map(); // callId -> { page, timestamp }
 const processedWebhooks = new Set(); // Track processed call IDs to prevent duplicates
+const dtmfBuffer = new Map(); // callId -> array of digits
 
 // MIME types for serving files
 const mimeTypes = {
@@ -61,6 +62,10 @@ const server = http.createServer((req, res) => {
   // List active calls
   else if (req.url === '/api/calls' && req.method === 'GET') {
     listActiveCalls(req, res);
+  }
+  // Handle notify events (DTMF, hangup, etc.)
+  else if (req.url.startsWith('/api/notify') && req.method === 'POST') {
+    handleNotifyEvent(req, res);
   }
   // Check if this is a proxy request
   else if (req.url.startsWith('/proxy/salesys/')) {
@@ -141,10 +146,15 @@ async function handleWebhook(req, res) {
       }, 120000);
       
       // Respond immediately to webhook with actions array
+      // Note: In production, use your Render URL instead of localhost
+      const notifyUrl = process.env.RENDER_EXTERNAL_URL 
+        ? `${process.env.RENDER_EXTERNAL_URL}/api/notify`
+        : 'https://bridge-gxqe.onrender.com/api/notify';
+      
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([
         { action: 'recording_start', param: { mono: 'false' } },
-        { action: 'notify', param: { url: 'https://webhook.site/35f33f22-897f-4003-be6c-e3b469002a19' } }
+        { action: 'notify', param: { url: notifyUrl } }
       ]));
       
       // Store call ID and caller number for the waiting browser tab to pick up
@@ -295,6 +305,168 @@ function listActiveCalls(req, res) {
   console.log('[API] Listing active calls:', calls.length);
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ calls, count: calls.length }));
+}
+
+async function handleNotifyEvent(req, res) {
+  let body = [];
+  req.on('data', chunk => body.push(chunk));
+  
+  req.on('end', async () => {
+    try {
+      body = Buffer.concat(body).toString();
+      const event = JSON.parse(body);
+      
+      const callId = event.call?.id;
+      const eventName = event.name;
+      
+      console.log('[NOTIFY] Event:', eventName, 'Call:', callId);
+      
+      // Handle DTMF events
+      if (eventName === 'dtmf') {
+        const digit = event.arg?.dtmf_digit;
+        console.log('[DTMF] Digit pressed:', digit, 'Call:', callId);
+        
+        // Initialize buffer for this call if needed
+        if (!dtmfBuffer.has(callId)) {
+          dtmfBuffer.set(callId, []);
+        }
+        
+        const buffer = dtmfBuffer.get(callId);
+        
+        // If * is pressed, check for Swedish SSN in previous digits
+        if (digit === '*') {
+          console.log('[DTMF] * pressed - checking for Swedish SSN');
+          const recentDigits = buffer.slice(-12).join(''); // Last 12 digits
+          
+          const ssn = validateSwedishSSN(recentDigits);
+          if (ssn) {
+            console.log('[SSN] Valid Swedish SSN found:', ssn);
+            
+            // Send to Fello API
+            try {
+              const response = await fetch('https://fello.link/api/fello-identify-v3.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ssn: ssn,
+                  refId: callId
+                })
+              });
+              
+              console.log('[SSN] Fello API response:', response.status);
+              
+              // Send context update to AI
+              const bridge = activeBridges.get(callId);
+              if (bridge) {
+                await bridge.page.evaluate((ssnData) => {
+                  if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
+                    window.elevenLabsBridge.ws.send(JSON.stringify({
+                      type: 'contextual_update',
+                      text: `User entered Swedish SSN: ${ssnData} and pressed * to confirm`
+                    }));
+                  }
+                }, ssn);
+              }
+            } catch (error) {
+              console.error('[SSN] Failed to send to Fello:', error);
+            }
+          } else {
+            console.log('[SSN] No valid SSN found in:', recentDigits);
+          }
+          
+          // Clear buffer after * press
+          buffer.length = 0;
+        } else {
+          // Add digit to buffer
+          buffer.push(digit);
+          console.log('[DTMF] Buffer:', buffer.join(''));
+        }
+      }
+      
+      // Handle hangup events
+      if (eventName === 'hangup') {
+        console.log('[NOTIFY] Call ended:', callId);
+        
+        // Clean up DTMF buffer
+        dtmfBuffer.delete(callId);
+        
+        // Trigger cleanup (the page title monitor will handle closing the tab)
+        const bridge = activeBridges.get(callId);
+        if (bridge) {
+          try {
+            await bridge.page.evaluate(() => {
+              // Trigger hangup cleanup in the page
+              if (window.verto && window.currentDialog) {
+                window.currentDialog.hangup();
+              }
+            });
+          } catch (e) {
+            console.log('[NOTIFY] Page already closed');
+          }
+        }
+      }
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ received: true }));
+      
+    } catch (error) {
+      console.error('[NOTIFY] Error:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  });
+}
+
+function validateSwedishSSN(digits) {
+  // Try 10-digit format (YYMMDDXXXX)
+  if (digits.length >= 10) {
+    const ssn10 = digits.slice(-10);
+    if (isValidSwedishSSN(ssn10)) {
+      // Convert to 12-digit format (assume 19XX for YY < 30, else 20XX)
+      const yy = parseInt(ssn10.substring(0, 2));
+      const century = yy < 30 ? '20' : '19';
+      return century + ssn10;
+    }
+  }
+  
+  // Try 12-digit format (YYYYMMDDXXXX)
+  if (digits.length >= 12) {
+    const ssn12 = digits.slice(-12);
+    if (isValidSwedishSSN(ssn12.substring(2))) { // Validate last 10 digits
+      return ssn12;
+    }
+  }
+  
+  return null;
+}
+
+function isValidSwedishSSN(ssn10) {
+  // Must be 10 digits
+  if (!/^\d{10}$/.test(ssn10)) return false;
+  
+  // Validate date (YYMMDD)
+  const yy = parseInt(ssn10.substring(0, 2));
+  const mm = parseInt(ssn10.substring(2, 4));
+  const dd = parseInt(ssn10.substring(4, 6));
+  
+  if (mm < 1 || mm > 12) return false;
+  if (dd < 1 || dd > 31) return false;
+  
+  // Validate Luhn checksum
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let digit = parseInt(ssn10[i]);
+    if (i % 2 === 0) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  
+  const checksum = (10 - (sum % 10)) % 10;
+  const lastDigit = parseInt(ssn10[9]);
+  
+  return checksum === lastDigit;
 }
 
 function handleProxy(req, res, targetHost, proxyPrefix) {
