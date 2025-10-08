@@ -382,6 +382,45 @@ async function handleNotifyEvent(req, res) {
           
           // Clear buffer after * press
           buffer.length = 0;
+        } else if (digit === '#') {
+          // Hash key pressed - call route.php
+          console.log('[DTMF] # pressed - calling route.php');
+          
+          try {
+            const payload = {
+              callId: callId
+            };
+            
+            console.log('[ROUTE] Sending to Fello route API:', 'https://fello.link/api/route.php');
+            console.log('[ROUTE] Payload:', JSON.stringify(payload));
+            
+            const response = await fetch('https://fello.link/api/route.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            
+            const responseText = await response.text();
+            console.log('[ROUTE] Fello route API response:', response.status, responseText);
+            
+            // Send context update to AI
+            const bridge = activeBridges.get(callId);
+            if (bridge) {
+              await bridge.page.evaluate(() => {
+                if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
+                  window.elevenLabsBridge.ws.send(JSON.stringify({
+                    type: 'contextual_update',
+                    text: 'User pressed # to request routing'
+                  }));
+                }
+              });
+            }
+          } catch (error) {
+            console.error('[ROUTE] Failed to send to Fello route API:', error);
+          }
+          
+          // Clear buffer after # press
+          buffer.length = 0;
         } else {
           // Add digit to buffer
           buffer.push(digit);
