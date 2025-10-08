@@ -387,6 +387,22 @@ async function handleNotifyEvent(req, res) {
           buffer.push(digit);
           console.log('[DTMF] Buffer:', buffer.join(''));
         }
+        
+        // Send user_activity to AI for every DTMF press
+        const bridge = activeBridges.get(callId);
+        if (bridge) {
+          try {
+            await bridge.page.evaluate(() => {
+              if (window.elevenLabsBridge && window.elevenLabsBridge.ws && window.elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
+                window.elevenLabsBridge.ws.send(JSON.stringify({
+                  type: 'user_activity'
+                }));
+              }
+            });
+          } catch (e) {
+            console.log('[DTMF] Failed to send user_activity');
+          }
+        }
       }
       
       // Handle hangup events

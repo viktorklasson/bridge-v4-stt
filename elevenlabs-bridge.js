@@ -339,10 +339,26 @@ class ElevenLabsBridge {
           
           console.log('[ElevenLabs] ⏳ Waiting for server to acknowledge before sending audio...');
           // Don't set conversationReady yet - wait for next message
-        } else if (message.type === 'conversation_initiation_client_data_received' || message.type === 'ping') {
-          // Server acknowledged our client data OR sent ping - now ready for audio!
+        } else if (message.type === 'conversation_initiation_client_data_received') {
+          // Server acknowledged our client data - now ready for audio!
           if (!this.conversationReady) {
             console.log('[ElevenLabs] ✅ Server ready! Now we can send audio');
+            this.conversationReady = true;
+            this.onStatusChange('conversation_ready');
+          }
+        } else if (message.type === 'ping') {
+          // Handle ping immediately and send pong
+          const pongResponse = {
+            type: 'pong',
+            event_id: message.ping_event?.event_id
+          };
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(pongResponse));
+            // Don't log every pong to reduce noise
+          }
+          
+          // Also mark as ready if not already
+          if (!this.conversationReady) {
             this.conversationReady = true;
             this.onStatusChange('conversation_ready');
           }
@@ -378,17 +394,6 @@ class ElevenLabsBridge {
           console.log('[ElevenLabs] 🎤 User said:', userText);
         } else if (message.type === 'interruption') {
           console.log('[ElevenLabs] User interrupted agent');
-        } else if (message.type === 'ping') {
-          console.log('[ElevenLabs] Ping received');
-          // Respond to ping with pong
-          const pongResponse = {
-            type: 'pong',
-            event_id: message.ping_event?.event_id
-          };
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(pongResponse));
-            console.log('[ElevenLabs] Sent pong response');
-          }
         } else {
           console.log('[ElevenLabs] Unknown message type:', message);
         }
