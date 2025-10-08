@@ -387,17 +387,17 @@ async function handleNotifyEvent(req, res) {
           console.log('[DTMF] # pressed - calling route.php');
           
           try {
-            const payload = {
-              call_id: callId
-            };
+            // PHP expects call_id as form data, not JSON
+            const formData = new URLSearchParams();
+            formData.append('call_id', callId);
             
             console.log('[ROUTE] Sending to Fello route API:', 'https://fello.link/api/route.php');
-            console.log('[ROUTE] Payload:', JSON.stringify(payload));
+            console.log('[ROUTE] call_id:', callId);
             
             const response = await fetch('https://fello.link/api/route.php', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: formData.toString()
             });
             
             const responseText = await response.text();
