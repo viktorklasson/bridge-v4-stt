@@ -334,8 +334,8 @@ async function handleNotifyEvent(req, res) {
         const buffer = dtmfBuffer.get(callId);
         
         // If * is pressed, check for Swedish SSN in previous digits
-        if (digit === '*') {
-          console.log('[DTMF] * pressed - checking for Swedish SSN');
+        if (digit === '#') {
+          console.log('[DTMF] # pressed - checking for Swedish SSN');
           const recentDigits = buffer.slice(-12).join(''); // Last 12 digits
           
           const ssn = validateSwedishSSN(recentDigits);
@@ -368,7 +368,7 @@ async function handleNotifyEvent(req, res) {
                   if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
                     window.elevenLabsBridge.ws.send(JSON.stringify({
                       type: 'contextual_update',
-                      text: `User entered Swedish SSN: ${ssnData} and pressed * to confirm`
+                      text: `User entered Swedish SSN: ${ssnData} and pressed # to confirm`
                     }));
                   }
                 }, ssn);
@@ -380,11 +380,11 @@ async function handleNotifyEvent(req, res) {
             console.log('[SSN] No valid SSN found in:', recentDigits);
           }
           
-          // Clear buffer after * press
+          // Clear buffer after # press
           buffer.length = 0;
-        } else if (digit === '#') {
-          // Hash key pressed - call route.php
-          console.log('[DTMF] # pressed - calling route.php');
+        } else if (digit === '*') {
+          // Star key pressed - call route.php
+          console.log('[DTMF] * pressed - calling route.php');
           
           try {
             // PHP expects call_id as form data, not JSON
@@ -410,7 +410,7 @@ async function handleNotifyEvent(req, res) {
                 if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
                   window.elevenLabsBridge.ws.send(JSON.stringify({
                     type: 'contextual_update',
-                    text: 'User pressed # to request routing'
+                    text: 'User pressed * to request routing'
                   }));
                 }
               });
@@ -419,7 +419,7 @@ async function handleNotifyEvent(req, res) {
             console.error('[ROUTE] Failed to send to Fello route API:', error);
           }
           
-          // Clear buffer after # press
+          // Clear buffer after * press
           buffer.length = 0;
         } else {
           // Add digit to buffer
