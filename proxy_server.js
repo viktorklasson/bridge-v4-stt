@@ -374,10 +374,38 @@ async function handleNotifyEvent(req, res) {
                   if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
                     window.elevenLabsBridge.ws.send(JSON.stringify({
                       type: 'contextual_update',
-                      text: `User entered Swedish SSN: ${ssnData} and pressed # to confirm`
+                      text: `User entered Swedish SSN: ${ssnData} and pressed # to confirm. User is now identified.`
                     }));
                   }
                 }, ssn);
+              }
+              
+              // Automatically route the call after successful identification
+              console.log('[SSN] User identified - automatically routing call...');
+              
+              // Call route.php to forward the call
+              const routeFormData = new URLSearchParams();
+              routeFormData.append('call_id', callId);
+              
+              const routeResponse = await fetch('https://fello.link/api/route.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: routeFormData.toString()
+              });
+              
+              const routeResponseText = await routeResponse.text();
+              console.log('[SSN] Auto-route response:', routeResponse.status, routeResponseText);
+              
+              // Notify AI that call is being routed
+              if (bridge) {
+                await bridge.page.evaluate(() => {
+                  if (window.elevenLabsBridge && window.elevenLabsBridge.ws) {
+                    window.elevenLabsBridge.ws.send(JSON.stringify({
+                      type: 'contextual_update',
+                      text: 'Call is now being routed to an agent.'
+                    }));
+                  }
+                });
               }
             } catch (error) {
               console.error('[SSN] Failed to send to Fello:', error);
