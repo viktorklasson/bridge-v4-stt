@@ -123,6 +123,7 @@ async function handleWebhook(req, res) {
             console.log('[WEBHOOK] Closing old tab for call:', oldCallId);
             try {
               await bridge.page.close();
+              if (bridge.context) await bridge.context.close();
               activeBridges.delete(oldCallId);
               processedWebhooks.delete(oldCallId);
             } catch (e) {
@@ -185,9 +186,10 @@ async function handleWebhook(req, res) {
           console.log('[WEBHOOK] ✅ Browser initialized');
         }
         
-        // Open new page for this call
-        const page = await browser.newPage();
-        console.log('[WEBHOOK] ✅ New tab opened for call:', webhook.id);
+        // Create isolated browser context for this call (better isolation than tabs)
+        const context = await browser.createIncognitoBrowserContext();
+        const page = await context.newPage();
+        console.log('[WEBHOOK] ✅ New isolated context opened for call:', webhook.id);
         
         // Navigate to bridge URL
         await page.goto(bridgeUrl, { waitUntil: 'networkidle0', timeout: 15000 });
@@ -195,7 +197,8 @@ async function handleWebhook(req, res) {
         
         // Store the page reference
         activeBridges.set(webhook.id, { 
-          page, 
+          page,
+          context,
           timestamp: Date.now(),
           callerNumber: webhook.number?.caller
         });
@@ -216,6 +219,7 @@ async function handleWebhook(req, res) {
               console.log('[WEBHOOK] Call ended, closing tab:', webhook.id);
               clearInterval(cleanupInterval);
               await page.close();
+              if (context) await context.close();
               activeBridges.delete(webhook.id);
               
               // Clear deduplication immediately so new calls can come through
@@ -232,7 +236,9 @@ async function handleWebhook(req, res) {
         setTimeout(async () => {
           if (activeBridges.has(webhook.id)) {
             console.log('[WEBHOOK] Timeout cleanup for call:', webhook.id);
-            await page.close();
+            const bridge = activeBridges.get(webhook.id);
+            await bridge.page.close();
+            if (bridge.context) await bridge.context.close();
             activeBridges.delete(webhook.id);
           }
         }, 600000);
