@@ -137,7 +137,54 @@ class SonioxSTT {
       // Log ALL messages from Soniox for debugging
       console.log('[Soniox] 📩 Received message:', JSON.stringify(message).substring(0, 200));
       
-      // Handle different message types
+      // Handle Soniox v10 format: fw (final words), nfw (non-final words)
+      if (message.fw !== undefined || message.nfw !== undefined) {
+        const finalWords = message.fw || [];
+        const nonFinalWords = message.nfw || [];
+        
+        console.log('[Soniox] Words - Final:', finalWords.length, 'Non-final:', nonFinalWords.length);
+        
+        // Build transcript from final words
+        if (finalWords.length > 0) {
+          const finalText = finalWords.map(w => w.t || w.text || '').join('');
+          this.currentTranscript += finalText;
+          console.log('[Soniox] ✅ Final text added:', finalText, '| Total:', this.currentTranscript);
+        }
+        
+        // Build partial from non-final words
+        if (nonFinalWords.length > 0) {
+          this.partialTranscript = nonFinalWords.map(w => w.t || w.text || '').join('');
+          console.log('[Soniox] 📝 Non-final text:', this.partialTranscript);
+        }
+        
+        // Send partial updates
+        const fullPartial = this.currentTranscript + this.partialTranscript;
+        if (fullPartial) {
+          console.log('[Soniox] 📝 Partial update:', fullPartial);
+          this.onPartialTranscript(fullPartial);
+        }
+        
+        // Check for endpoint (when we have final text and non-final is empty)
+        if (this.currentTranscript.trim() && nonFinalWords.length === 0 && finalWords.length > 0) {
+          console.log('[Soniox] ========== ENDPOINT DETECTED (implicit) ==========');
+          console.log('[Soniox] ✅✅✅ Complete transcript:', this.currentTranscript);
+          this.onTranscript(this.currentTranscript.trim());
+          
+          // Reset for next utterance
+          this.currentTranscript = '';
+          this.partialTranscript = '';
+          console.log('[Soniox] Reset for next utterance');
+        }
+        
+        // Log audio progress
+        if (message.fpt !== undefined) {
+          console.log('[Soniox] Audio processed:', message.fpt, 'ms (final),', message.tpt, 'ms (total)');
+        }
+        
+        return;
+      }
+      
+      // Handle old-style result format (if API changes)
       if (message.result) {
         const result = message.result;
         

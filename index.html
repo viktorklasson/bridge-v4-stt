@@ -889,14 +889,20 @@
         // STEP 1: Initialize Soniox STT for transcription
         console.log('[STT] ========== INITIALIZING SONIOX STT ==========');
         console.log('[STT] phoneAudioStream available:', !!phoneAudioStream);
-        console.log('[STT] fakeMicStreamForSTT available:', !!window.fakeMicStreamForSTT);
+        console.log('[STT] phoneAudioStream ID:', phoneAudioStream?.id);
+        console.log('[STT] phoneAudioStream active:', phoneAudioStream?.active);
+        console.log('[STT] phoneAudioStream tracks:', phoneAudioStream?.getAudioTracks().length);
         console.log('[STT] Soniox API key configured:', !!sonioxConfig.apiKey);
         
-        // WORKAROUND: Use fake mic stream if phoneAudioStream not available
-        const audioStreamForSTT = phoneAudioStream || window.fakeMicStreamForSTT;
-        console.log('[STT] Using audio stream:', audioStreamForSTT?.id);
+        if (!phoneAudioStream) {
+          console.error('[STT] ❌ NO PHONE AUDIO STREAM! Cannot initialize Soniox');
+          addStatus('❌ No phone audio stream available', 'error');
+          throw new Error('Phone audio stream not available');
+        }
         
-        addStatus('🎤 Starting Soniox STT...', 'info');
+        console.log('[STT] ✅ Using REAL phoneAudioStream:', phoneAudioStream.id);
+        
+        addStatus('🎤 Starting Soniox STT with phone audio...', 'info');
         sonioxSTT = new SonioxSTT({
           apiKey: sonioxConfig.apiKey,
           onTranscript: (text) => {
@@ -931,9 +937,9 @@
           }
         });
 
-        // Initialize Soniox with phone audio stream (or fake mic as fallback)
-        await sonioxSTT.initialize(audioStreamForSTT);
-        addStatus('✅ Soniox STT active - listening to audio', 'success');
+        // Initialize Soniox with REAL phone audio stream (NOT fake mic)
+        await sonioxSTT.initialize(phoneAudioStream);
+        addStatus('✅ Soniox STT active - listening to REAL phone audio', 'success');
 
         // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
         addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
