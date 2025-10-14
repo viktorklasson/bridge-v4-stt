@@ -134,6 +134,9 @@ class SonioxSTT {
     try {
       const message = JSON.parse(data);
       
+      // Log ALL messages from Soniox for debugging
+      console.log('[Soniox] 📩 Received message:', JSON.stringify(message).substring(0, 200));
+      
       // Handle different message types
       if (message.result) {
         const result = message.result;
@@ -195,10 +198,12 @@ class SonioxSTT {
           console.log('[Soniox] Audio processed:', result.audio_final_proc_ms, 'ms (final),', result.audio_total_proc_ms, 'ms (total)');
         }
       } else if (message.error) {
-        console.error('[Soniox] Error from server:', message.error);
+        console.error('[Soniox] ❌❌❌ Error from server:', message.error);
         this.onError(new Error(message.error));
       } else if (message.status) {
-        console.log('[Soniox] Status:', message.status);
+        console.log('[Soniox] Status update:', message.status);
+      } else {
+        console.log('[Soniox] ⚠️ Unknown message type:', Object.keys(message));
       }
       
     } catch (error) {
