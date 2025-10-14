@@ -639,46 +639,26 @@
               
               // Wait briefly for park call to establish (reduced for faster response)
               setTimeout(async () => {
-                // Step 1: Answer the incoming call via Telnect API
+                // Step 1: Call is already answered by webhook, just bridge
+                console.log('[Call] Call already answered by webhook, proceeding to bridge');
+                addStatus('✅ Call already answered, bridging...', 'success');
+                
+                // Bridge the two calls together
                 fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
-                method: "POST",
-                headers: {
-                  "Authorization": "Bearer " + telnectToken,
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                  "actions": [{
-                    "action": "answer"
-                  }]
+                  method: "POST",
+                  headers: {
+                    "Authorization": "Bearer " + telnectToken,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    "actions": [{
+                      "action": "bridge",
+                      "param": {
+                        "id": currentCallId  // Bridge with our park call
+                      }
+                    }]
+                  })
                 })
-              })
-              .then(res => {
-                if (res.ok) {
-                  console.log('[Call] ✅ Inbound call answered');
-                  addStatus('✅ Inbound call answered', 'success');
-                  
-                  // Step 2: Bridge the two calls together
-                  // Wait briefly for answer to complete
-                  return new Promise(resolve => setTimeout(resolve, 500))
-                    .then(() => fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
-                      method: "POST",
-                      headers: {
-                        "Authorization": "Bearer " + telnectToken,
-                        "Content-Type": "application/json"
-                      },
-                      body: JSON.stringify({
-                        "actions": [{
-                          "action": "bridge",
-                          "param": {
-                            "id": currentCallId  // Bridge with our park call
-                          }
-                        }]
-                      })
-                    }));
-                } else {
-                  throw new Error('Failed to answer inbound call');
-                }
-              })
               .then(async res => {
                 if (res && res.ok) {
                   console.log('[Call] ✅ Calls bridged together!');
