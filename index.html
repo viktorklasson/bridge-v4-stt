@@ -505,26 +505,30 @@
         tag: "audio-stream"
       }, {
         onRemoteStream: stream => {
-          console.log("========== onRemoteStream FIRED ==========", stream);
+          console.log("========== onRemoteStream FIRED ==========");
           console.log('[Audio] Stream ID:', stream.id);
           console.log('[Audio] Active:', stream.active);
           console.log('[Audio] Audio tracks:', stream.getAudioTracks().length);
-          console.log('[Audio] Inbound call ID:', window.inboundCallId);
-          console.log('[Audio] Current bridges:', {elevenlabs: !!elevenLabsBridge, soniox: !!sonioxSTT});
+          console.log('[Audio] Is inbound call:', !!window.inboundCallId);
+          console.log('[Audio] Already initialized:', {elevenlabs: !!elevenLabsBridge, soniox: !!sonioxSTT});
+          
           addStatus('📞 Incoming audio stream from remote party', 'success');
           
-          // This is the audio FROM the remote party (what you HEAR)
+          // ALWAYS set phoneAudioStream - this is the WebRTC audio we need!
           phoneAudioStream = stream;
+          console.log('[Audio] ✅ phoneAudioStream SET:', stream.id);
           
-          // IMPORTANT: Initialize AI agent now that we have phone audio
-          if (window.inboundCallId && !elevenLabsBridge && !sonioxSTT) {
-            console.log('[Audio] ✅ Remote stream received, initializing AI agent with audio...');
-            addStatus('🎤 Remote audio ready, starting STT...', 'success');
+          // Initialize AI if this is an inbound call and we haven't initialized yet
+          if (window.inboundCallId && !sonioxSTT) {
+            console.log('[Audio] ✅✅✅ INITIALIZING AI with WebRTC audio stream!');
+            addStatus('🎤 Remote audio ready, starting STT+AI...', 'success');
+            
+            // Initialize immediately (audio is ready)
             setTimeout(() => {
               initializeElevenLabsBridge();
-            }, 1000); // Brief delay to ensure stream is stable
+            }, 500);
           } else {
-            console.log('[Audio] ⚠️ NOT initializing - inboundCallId:', window.inboundCallId, 'elevenlabs:', !!elevenLabsBridge, 'soniox:', !!sonioxSTT);
+            console.log('[Audio] Skipping init - inbound:', !!window.inboundCallId, 'soniox exists:', !!sonioxSTT);
           }
           
           console.log('[Audio] Remote party stream received:', {
@@ -695,8 +699,8 @@
                   // Start recording
                   startRecording(currentCallId);
                   
-                  // Don't initialize AI here - wait for onRemoteStream to fire
-                  console.log('[Call] Calls bridged, waiting for remote audio stream...');
+                  // Note: AI initialization happens in onRemoteStream callback
+                  console.log('[Call] Calls bridged. AI will initialize when onRemoteStream fires with WebRTC audio.');
                 } else {
                   const errorText = await res.text();
                   console.error('[Call] Bridge failed:', res.status, errorText);
