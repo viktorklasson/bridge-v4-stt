@@ -97,12 +97,9 @@ class SonioxSTT {
           enable_streaming: true,
           audio_format: 'pcm_s16le',
           sample_rate: this.TARGET_SAMPLE_RATE,
-          num_channels: 1,
-          // Fine-tune endpoint detection
-          endpoint_config: {
-            // Time in ms to wait for silence before finalizing
-            silence_duration_ms: 800
-          }
+          num_channels: 1
+          // Note: endpoint_config removed - not supported in this API version
+          // Endpoint detection uses default settings
         };
         
         console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));
