@@ -281,6 +281,18 @@
         // Verto wants audio - give it virtual audio (AI output → Remote Party)
         console.log('[Bridge] → Returning VIRTUAL audio source (headless bridge)');
         addStatus('📡 Verto: using virtual audio (AI→Phone)', 'info');
+        
+        // WORKAROUND: Also try to get real microphone for STT
+        // In Puppeteer with fake device, this gives us a fake stream we can use
+        try {
+          const realMic = await originalGetUserMedia({audio: true});
+          console.log('[Bridge] ✅ Got fake mic stream for STT:', realMic.id);
+          // Store for Soniox to use
+          window.fakeMicStreamForSTT = realMic;
+        } catch (e) {
+          console.log('[Bridge] ⚠️ Could not get fake mic:', e.message);
+        }
+        
         return virtualAudioSource.getMediaStream();
       }
       
@@ -873,7 +885,13 @@
         // STEP 1: Initialize Soniox STT for transcription
         console.log('[STT] ========== INITIALIZING SONIOX STT ==========');
         console.log('[STT] phoneAudioStream available:', !!phoneAudioStream);
+        console.log('[STT] fakeMicStreamForSTT available:', !!window.fakeMicStreamForSTT);
         console.log('[STT] Soniox API key configured:', !!sonioxConfig.apiKey);
+        
+        // WORKAROUND: Use fake mic stream if phoneAudioStream not available
+        const audioStreamForSTT = phoneAudioStream || window.fakeMicStreamForSTT;
+        console.log('[STT] Using audio stream:', audioStreamForSTT?.id);
+        
         addStatus('🎤 Starting Soniox STT...', 'info');
         sonioxSTT = new SonioxSTT({
           apiKey: sonioxConfig.apiKey,
@@ -909,9 +927,9 @@
           }
         });
 
-        // Initialize Soniox with phone audio stream
-        await sonioxSTT.initialize(phoneAudioStream);
-        addStatus('✅ Soniox STT active - listening to phone audio', 'success');
+        // Initialize Soniox with phone audio stream (or fake mic as fallback)
+        await sonioxSTT.initialize(audioStreamForSTT);
+        addStatus('✅ Soniox STT active - listening to audio', 'success');
 
         // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
         addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
