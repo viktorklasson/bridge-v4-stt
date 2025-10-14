@@ -90,15 +90,14 @@ class SonioxSTT {
         console.log('[Soniox] ✅✅✅ WebSocket CONNECTED successfully!');
         
         // Send configuration message
-        // Using minimal valid config based on Soniox WebSocket API
+        // Based on Soniox WebSocket API documentation
         const config = {
           api_key: this.apiKey,
           model: 'en_v2',
           enable_endpoint_detection: true,
           audio_format: 'pcm_s16le',
-          sample_rate_hertz: this.TARGET_SAMPLE_RATE
-          // Note: Removed unsupported fields (endpoint_config, num_channels, enable_streaming)
-          // Mono audio is implied by format
+          sample_rate_hertz: this.TARGET_SAMPLE_RATE,
+          num_audio_channels: 1  // Required for PCM - using num_audio_channels instead of num_channels
         };
         
         console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));
