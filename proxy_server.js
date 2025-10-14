@@ -154,6 +154,7 @@ async function handleWebhook(req, res) {
       
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([
+        { action: 'answer' }, // CRITICAL: Answer the call first!
         { action: 'recording_start', param: { mono: 'false' } },
         { action: 'notify', param: { url: notifyUrl } }
       ]));
