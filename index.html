@@ -123,15 +123,15 @@
     </div>
     
     <div class="audio-monitor">
-      <h3>🎵 Audio Levels Monitor</h3>
+      <h3>🎵 Audio & Transcription Monitor</h3>
       <p style="font-size: 12px; color: #666; margin: 5px 0 15px 0;">
-        <strong>Audio Flow:</strong> Phone Call (You) → AI Agent → Remote Party<br>
-        <em>AI hears your phone audio and responds to the remote party</em>
+        <strong>NEW Architecture:</strong> Phone → Soniox STT → ElevenLabs (text) → Phone<br>
+        <em>Phone audio → Soniox transcription → AI text response → TTS audio output</em>
       </p>
       
       <div class="audio-level">
         <div class="audio-level-label">
-          🎤 Phone Audio → AI Agent
+          🎤 Phone Audio → Soniox STT
           <span class="audio-status" id="phone-to-agent-status"></span>
         </div>
         <div class="audio-level-bar">
@@ -142,7 +142,7 @@
       
       <div class="audio-level">
         <div class="audio-level-label">
-          🔊 AI Agent → Remote Party
+          🔊 AI TTS Audio → Remote Party
           <span class="audio-status" id="agent-to-phone-status"></span>
         </div>
         <div class="audio-level-bar">
@@ -160,6 +160,7 @@
   <script src="https://app.salesys.se/libs/easytelecom/verto-min-0.0.2.js"></script>
   <script src="https://app.salesys.se/libs/easytelecom/media-device-id.min.js"></script>
   <script src="/virtual-audio-source.js"></script>
+  <script src="/soniox-stt.js"></script>
   <script src="/elevenlabs-bridge.js"></script>
   <audio autoplay hidden id="audio-stream"></audio>
 
@@ -177,6 +178,11 @@
       apiKey: 'sk_76e79a417321b8856248e1a6d8b50cabc92463b528727e34'
     };
 
+    // Soniox STT configuration
+    const sonioxConfig = {
+      apiKey: '6d2e14f6a742cfaef685a06fcee55941868e544eae32a805090a37b4d04510d0'
+    };
+
     // Telnect recording configuration
     const telnectConfig = {
       apiUrl: '/proxy/telnect/api/v1', // Use proxy to avoid CORS
@@ -184,6 +190,7 @@
     };
 
     let elevenLabsBridge = null;
+    let sonioxSTT = null; // NEW: Soniox STT instance
     let phoneAudioStream = null;
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
@@ -744,6 +751,19 @@
               currentCallId = null; // Clear the call ID
             }
             
+            // Terminate Soniox STT
+            if (sonioxSTT) {
+              try {
+                console.log('[Call] Stopping Soniox STT...');
+                await sonioxSTT.stop();
+                addStatus('✓ Soniox STT stopped', 'success');
+                sonioxSTT = null;
+              } catch (err) {
+                console.error('Error stopping Soniox:', err);
+                addStatus(`⚠️ Error stopping Soniox: ${err.message}`, 'error');
+              }
+            }
+
             // Terminate AI agent immediately
             if (elevenLabsBridge) {
               try {
@@ -755,7 +775,7 @@
                   elevenLabsBridge.ws = null;
                 }
                 
-                // Stop audio processing
+                // Stop audio processing (only if in audio mode)
                 if (elevenLabsBridge.phoneProcessor) {
                   elevenLabsBridge.phoneProcessor.disconnect();
                   elevenLabsBridge.phoneProcessor = null;
@@ -850,17 +870,59 @@
       }
 
       try {
-        addStatus('🤖 Initializing ElevenLabs bridge (HEADLESS)...', 'info');
-        console.log('=== Using Custom ElevenLabs Bridge (No SDK) ===');
+        // ========================================
+        // NEW ARCHITECTURE: Soniox STT + ElevenLabs Text
+        // ========================================
+        
+        addStatus('🤖 Initializing NEW ARCHITECTURE: Soniox STT + ElevenLabs...', 'info');
+        console.log('=== NEW ARCHITECTURE: Phone → Soniox STT → ElevenLabs (text) → Phone ===');
 
-        // Create custom bridge instance
+        // STEP 1: Initialize Soniox STT for transcription
+        addStatus('🎤 Starting Soniox STT...', 'info');
+        sonioxSTT = new SonioxSTT({
+          apiKey: sonioxConfig.apiKey,
+          onTranscript: (text) => {
+            // Called when complete transcript is ready (after endpoint detection)
+            console.log('[STT→AI] Complete transcript ready:', text);
+            addStatus(`👤 User said: "${text}"`, 'info');
+            
+            // Send to ElevenLabs as text message
+            if (elevenLabsBridge) {
+              elevenLabsBridge.sendTextMessage(text);
+            }
+          },
+          onPartialTranscript: (text) => {
+            // Called for partial/interim results
+            console.log('[STT] Partial:', text);
+            // Could update UI with partial results if needed
+          },
+          onStatusChange: (status) => {
+            console.log('[Soniox] Status:', status);
+            if (status === 'connected') {
+              addStatus('✓ Soniox STT connected', 'success');
+            } else if (status === 'error') {
+              addStatus('❌ Soniox error', 'error');
+            }
+          },
+          onError: (error) => {
+            console.error('[Soniox] Error:', error);
+            addStatus(`❌ Soniox error: ${error.message}`, 'error');
+          }
+        });
+
+        // Initialize Soniox with phone audio stream
+        await sonioxSTT.initialize(phoneAudioStream);
+        addStatus('✅ Soniox STT active - listening to phone audio', 'success');
+
+        // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
+        addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
         elevenLabsBridge = new ElevenLabsBridge({
           agentId: elevenLabsConfig.agentId,
           apiKey: elevenLabsConfig.apiKey,
           virtualAudioSource: virtualAudioSource,
+          useTextInput: true, // NEW: Enable text input mode
           customVariables: {
             call_id: window.inboundCallId || currentCallId || 'unknown',
-            // For inbound: user is caller, for outbound: user is called party
             user_number: window.inboundCallId ? 
               (new URLSearchParams(window.location.search).get('caller') || 'unknown') : 
               (new URLSearchParams(window.location.search).get('called') || 'unknown'),
@@ -868,15 +930,15 @@
             called_number: new URLSearchParams(window.location.search).get('called') || 'unknown'
           },
           onStatusChange: (status, error) => {
-            console.log('[Bridge] Status:', status);
+            console.log('[ElevenLabs] Status:', status);
             if (status === 'websocket_connected') {
-              addStatus('✓ WebSocket connected', 'success');
+              addStatus('✓ ElevenLabs WebSocket connected', 'success');
             } else if (status === 'conversation_ready') {
-              addStatus('✅ Conversation ready!', 'success');
+              addStatus('✅ ElevenLabs ready for text messages!', 'success');
             } else if (status === 'connected') {
               addStatus('✓ ElevenLabs connected', 'success');
             } else if (status === 'error') {
-              addStatus(`❌ Error: ${error?.message}`, 'error');
+              addStatus(`❌ ElevenLabs error: ${error?.message}`, 'error');
             } else if (status === 'error_disconnect') {
               addStatus('❌ AI agent disconnected unexpectedly - hanging up call', 'error');
               // Hangup the call via Telnect API
@@ -910,12 +972,13 @@
 
         // Expose bridge globally for context updates API
         window.elevenLabsBridge = elevenLabsBridge;
-        console.log('[Bridge] Bridge exposed globally for context updates');
+        window.sonioxSTT = sonioxSTT;
+        console.log('[Bridge] Bridges exposed globally');
 
-        // Initialize with phone audio stream (HEADLESS!)
-        await elevenLabsBridge.initialize(phoneAudioStream);
-        addStatus('✅ Headless bridge active!', 'success');
-        console.log('[Bridge] Phone audio → AI → Phone (fully headless)');
+        // Initialize ElevenLabs (no phone stream needed in text mode)
+        await elevenLabsBridge.initialize();
+        addStatus('✅ NEW ARCHITECTURE ACTIVE!', 'success');
+        console.log('[Bridge] ✅ Phone → Soniox STT → ElevenLabs (text) → Phone (audio)');
 
       } catch (error) {
         addStatus(`❌ Failed: ${error.message}`, 'error');

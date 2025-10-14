@@ -12,6 +12,7 @@ class ElevenLabsBridge {
     this.onAgentMessage = config.onAgentMessage || (() => {});
     this.onAudioLevel = config.onAudioLevel || (() => {}); // Callback for audio level updates
     this.customVariables = config.customVariables || {}; // Custom variables to pass to agent
+    this.useTextInput = config.useTextInput !== undefined ? config.useTextInput : false; // NEW: Text input mode
     
     this.ws = null;
     this.audioContext = null;
@@ -24,38 +25,43 @@ class ElevenLabsBridge {
     this.lastPhoneLevel = 0;
     this.lastAgentLevel = 0;
     
-    // Audio buffering for chunking (100ms chunks = 1600 samples at 16kHz)
+    // Audio buffering for chunking (only used in audio mode)
     this.audioBuffer = new Int16Array(0);
     this.SAMPLES_PER_CHUNK = 1600; // 100ms at 16kHz
     this.INPUT_SAMPLE_RATE = 48000;
     this.OUTPUT_SAMPLE_RATE = 16000;
     
-    // Audio processing nodes
+    // Audio processing nodes (only used in audio mode)
     this.phoneSource = null;
     this.phoneProcessor = null;
     
-    console.log('[ElevenLabs] Bridge initialized with virtual audio source:', !!this.virtualAudioSource);
+    console.log('[ElevenLabs] Bridge initialized - Mode:', this.useTextInput ? 'TEXT' : 'AUDIO', 'Virtual audio:', !!this.virtualAudioSource);
   }
 
   /**
    * Initialize the audio bridge
-   * @param {MediaStream} phoneStream - The audio stream from the phone call (WebRTC)
+   * @param {MediaStream} phoneStream - The audio stream from the phone call (WebRTC) - only needed in audio mode
    */
-  async initialize(phoneStream) {
+  async initialize(phoneStream = null) {
     this.onStatusChange('initializing');
     
     try {
-      // Create audio context with 16kHz sample rate (ElevenLabs speech recognition needs 16kHz)
-      // Browser will automatically resample phone audio from 48kHz to 16kHz
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: 16000
-      });
-      
-      console.log('[ElevenLabs] Audio context created:', this.audioContext.sampleRate, 'Hz (16kHz for speech recognition)');
-      
-      // Store phone stream (phone audio → AI)
-      this.phoneInputStream = phoneStream;
-      console.log('[ElevenLabs] Using phone audio stream - AI will hear phone call audio');
+      // Only create audio context if we're in audio mode (for audio streaming input)
+      if (!this.useTextInput && phoneStream) {
+        // Create audio context with 16kHz sample rate (ElevenLabs speech recognition needs 16kHz)
+        // Browser will automatically resample phone audio from 48kHz to 16kHz
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+          sampleRate: 16000
+        });
+        
+        console.log('[ElevenLabs] Audio context created:', this.audioContext.sampleRate, 'Hz (16kHz for speech recognition)');
+        
+        // Store phone stream (phone audio → AI)
+        this.phoneInputStream = phoneStream;
+        console.log('[ElevenLabs] Using phone audio stream - AI will hear phone call audio');
+      } else if (this.useTextInput) {
+        console.log('[ElevenLabs] TEXT MODE - No audio input needed, will use text messages');
+      }
       
       // Try public agent connection first (no auth needed)
       const publicUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${this.agentId}`;
@@ -71,8 +77,10 @@ class ElevenLabsBridge {
         await this.connectToAgent(signedUrl);
       }
       
-      // Start audio processing
-      this.startAudioProcessing();
+      // Start audio processing only in audio mode
+      if (!this.useTextInput && phoneStream) {
+        this.startAudioProcessing();
+      }
       
       this.isActive = true;
       this.onStatusChange('connected');
@@ -269,6 +277,7 @@ class ElevenLabsBridge {
 
   /**
    * Send audio data to ElevenLabs agent (with buffering and chunking)
+   * Only used in audio mode
    */
   sendAudioToAgent(pcmData) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.conversationReady) {
@@ -309,6 +318,34 @@ class ElevenLabsBridge {
         this.firstAudioSent = true;
       }
     }
+  }
+
+  /**
+   * Send text message to ElevenLabs agent
+   * Used in text input mode
+   * @param {string} text - The user's message text
+   */
+  sendTextMessage(text) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.conversationReady) {
+      console.warn('[ElevenLabs] Cannot send text - not ready');
+      return;
+    }
+
+    if (!text || !text.trim()) {
+      console.warn('[ElevenLabs] Empty text message, skipping');
+      return;
+    }
+
+    console.log('[ElevenLabs] 📤 Sending text message:', text);
+
+    // Send user message as text
+    const message = {
+      type: 'user_message',
+      user_message: text.trim()
+    };
+
+    this.ws.send(JSON.stringify(message));
+    console.log('[ElevenLabs] ✅ Text message sent');
   }
 
   /**

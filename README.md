@@ -1,29 +1,36 @@
-# Bridge v3 - Autonomous Phone Call AI Bridge
+# Bridge v4 STT - Autonomous Phone Call AI Bridge with Custom STT
 
-Fully autonomous system that bridges inbound phone calls with ElevenLabs Conversational AI agents. Receives webhooks from Telnect, automatically answers calls, and connects them to AI agents with zero manual intervention.
+Fully autonomous system that bridges inbound phone calls with ElevenLabs Conversational AI agents using Soniox real-time STT. Receives webhooks from Telnect, automatically answers calls, and connects them to AI agents with zero manual intervention.
 
-## Architecture
+## Architecture (NEW!)
 
 ```
 Phone Call (Verto/WebRTC) 
-    ↓ 48kHz audio
-Audio Bridge (Web Audio API)
-    ↓ 
-ElevenLabs AI Agent (WebSocket)
-    ↓ AI responses
-Audio Bridge
-    ↓
+    ↓ 48kHz audio → 16kHz resampling
+Soniox Real-time STT (WebSocket)
+    ↓ Text transcription (with endpoint detection)
+ElevenLabs AI Agent (WebSocket - TEXT MODE)
+    ↓ AI text response → TTS audio
+Virtual Audio Source
+    ↓ Audio injection
 Phone Call
 ```
+
+**Key Changes:**
+- 🎤 **Soniox STT**: Handles speech-to-text with advanced endpoint detection
+- 📝 **Text-based AI**: ElevenLabs receives text messages instead of audio stream
+- 🎯 **Endpoint Detection**: Natural turn-taking using Soniox's `<end>` token detection
+- ⚡ **Lower Latency**: Text processing is faster than audio streaming
 
 ## Features
 
 - ✅ WebRTC phone calls via Salesys/Verto
-- ✅ Real-time audio bridging (48kHz)
-- ✅ ElevenLabs Conversational AI integration
+- ✅ Soniox real-time STT with endpoint detection
+- ✅ ElevenLabs Conversational AI (text-based input)
+- ✅ Real-time audio bridging for TTS output
 - ✅ CORS proxy server
 - ✅ Real-time status monitoring
-- ✅ Audio quality monitoring
+- ✅ Transcription quality monitoring
 
 ## Quick Start
 
@@ -52,37 +59,61 @@ Configure webhook: `https://your-app.herokuapp.com/webhook/inbound-call`
 
 ## How It Works
 
-### Call Flow
+### Call Flow (NEW Architecture)
 
 1. **Login to Salesys** - Authenticates with Salesys API using the token
 2. **Connect to Verto** - Establishes WebRTC connection to phone system
 3. **Initiate Call** - Dials the configured number
 4. **Call Active** - When answered, triggers AI agent initialization
-5. **Bridge Audio** - Sets up bidirectional audio streaming:
-   - Phone audio → ElevenLabs AI (for understanding)
-   - AI responses → Phone audio (for speaking)
+5. **Initialize Soniox STT** - Connects to Soniox WebSocket for real-time transcription
+6. **Initialize ElevenLabs** - Connects in TEXT INPUT mode (no audio streaming)
+7. **Audio → Text Flow**:
+   - Phone audio (48kHz) → Soniox STT (16kHz)
+   - Soniox transcribes and detects endpoints (`<end>` token)
+   - Complete transcript sent to ElevenLabs as text message
+8. **Text → Audio Flow**:
+   - ElevenLabs generates TTS audio response
+   - Audio injected into phone call via Virtual Audio Source
 
 ### Audio Processing
 
-- **Sample Rate**: 48kHz (matches WebRTC standard)
-- **Format**: PCM 16-bit (converted from Float32)
+**Soniox STT:**
+- **Input Sample Rate**: 16kHz (auto-resampled from 48kHz)
+- **Format**: PCM 16-bit signed little-endian
 - **Channels**: Mono
-- **Latency**: ~85ms (4096 buffer size)
+- **Endpoint Detection**: Enabled (800ms silence threshold)
+- **Latency**: ~100ms for transcription
 
-### ElevenLabs Integration
+**ElevenLabs TTS:**
+- **Input**: Text messages (JSON)
+- **Output**: PCM 16-bit audio
+- **Sample Rate**: 16kHz
+- **Latency**: Depends on text length and TTS generation
 
-The `elevenlabs-bridge.js` module handles:
+### Module Integration
+
+**`soniox-stt.js`**:
+- WebSocket connection to Soniox
+- Audio capture and resampling (48kHz → 16kHz)
+- Token accumulation (final + partial)
+- Endpoint detection and transcript finalization
+- Callbacks for transcripts and status
+
+**`elevenlabs-bridge.js`** (Modified):
 - WebSocket connection to ElevenLabs
-- Audio format conversion (Float32 ↔ PCM16)
-- Real-time audio streaming
-- Message handling (transcriptions, AI responses)
+- TEXT INPUT mode support
+- `sendTextMessage(text)` method for text-based input
+- Audio output reception (TTS responses)
+- Virtual audio source integration for TTS playback
 
 ## File Structure
 
 ```
-bridge-v3/
+bridge-v4-stt/
 ├── index.html              # Main application
-├── elevenlabs-bridge.js    # ElevenLabs audio bridge
+├── soniox-stt.js           # Soniox real-time STT module (NEW)
+├── elevenlabs-bridge.js    # ElevenLabs bridge (modified for text input)
+├── virtual-audio-source.js # Virtual audio source for TTS injection
 ├── proxy_server.js         # CORS proxy server
 ├── package.json            # Dependencies
 └── README.md               # This file
@@ -95,12 +126,37 @@ bridge-v3/
 - `POST /proxy/api/dial/easytelecom-v1/login` - Get Verto credentials
 - `POST /proxy/api/dial/easytelecom-v1/call` - Initiate outbound call
 
-### ElevenLabs API (direct)
+### Soniox API (NEW)
+
+- `WebSocket wss://api.soniox.com/transcribe-websocket` - Real-time transcription
+  - Send: Configuration + PCM audio chunks
+  - Receive: Token stream with `is_final` flags and `<end>` markers
+
+### ElevenLabs API (modified)
 
 - `GET /v1/convai/conversation/get_signed_url` - Get WebSocket URL
 - `WebSocket` - Real-time conversation stream
+  - **NEW**: Send text messages via `user_message` type
+  - Receive: TTS audio responses
+
+## Configuration
+
+### Required API Keys
+
+1. **Soniox API Key**: Get from [Soniox Dashboard](https://soniox.com)
+   - Update `sonioxConfig.apiKey` in `index.html`
+
+2. **ElevenLabs Agent ID & API Key**: Get from [ElevenLabs Dashboard](https://elevenlabs.io)
+   - Update `elevenLabsConfig` in `index.html`
+
+3. **Salesys Token**: Provided by Salesys
+4. **Telnect Token**: Provided by Telnect
 
 ## Troubleshooting
+
+### "YOUR_SONIOX_API_KEY_HERE"
+
+Update the `sonioxConfig.apiKey` in `index.html` with your Soniox API key.
 
 ### "ElevenLabs agent ID not configured"
 
@@ -110,12 +166,18 @@ Update the `elevenLabsConfig` in `index.html` with your agent ID from ElevenLabs
 
 Check that your ElevenLabs API key is correct and has the necessary permissions.
 
-### Audio not bridging
+### No transcriptions appearing
 
-1. Check browser console for errors
-2. Verify microphone permissions are granted
-3. Check that both streams are active (phone + AI)
-4. Verify sample rates match (48kHz)
+1. Check browser console for Soniox connection status
+2. Verify Soniox API key is correct
+3. Check that phone audio stream is active
+4. Verify audio is being sent to Soniox (check console logs)
+
+### Transcriptions but no AI response
+
+1. Check ElevenLabs connection status
+2. Verify text messages are being sent (check console logs)
+3. Check ElevenLabs agent configuration supports text input
 
 ### CORS errors
 
