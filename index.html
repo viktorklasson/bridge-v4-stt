@@ -493,7 +493,12 @@
         tag: "audio-stream"
       }, {
         onRemoteStream: stream => {
-          console.debug("onRemoteStream", stream);
+          console.log("========== onRemoteStream FIRED ==========", stream);
+          console.log('[Audio] Stream ID:', stream.id);
+          console.log('[Audio] Active:', stream.active);
+          console.log('[Audio] Audio tracks:', stream.getAudioTracks().length);
+          console.log('[Audio] Inbound call ID:', window.inboundCallId);
+          console.log('[Audio] Current bridges:', {elevenlabs: !!elevenLabsBridge, soniox: !!sonioxSTT});
           addStatus('📞 Incoming audio stream from remote party', 'success');
           
           // This is the audio FROM the remote party (what you HEAR)
@@ -501,10 +506,13 @@
           
           // IMPORTANT: Initialize AI agent now that we have phone audio
           if (window.inboundCallId && !elevenLabsBridge && !sonioxSTT) {
-            console.log('[Audio] Remote stream received, initializing AI agent with audio...');
+            console.log('[Audio] ✅ Remote stream received, initializing AI agent with audio...');
+            addStatus('🎤 Remote audio ready, starting STT...', 'success');
             setTimeout(() => {
               initializeElevenLabsBridge();
             }, 1000); // Brief delay to ensure stream is stable
+          } else {
+            console.log('[Audio] ⚠️ NOT initializing - inboundCallId:', window.inboundCallId, 'elevenlabs:', !!elevenLabsBridge, 'soniox:', !!sonioxSTT);
           }
           
           console.log('[Audio] Remote party stream received:', {
