@@ -207,7 +207,10 @@ async function handleWebhook(req, res) {
         // Monitor page console for debugging
         page.on('console', msg => {
           const text = msg.text();
-          if (text.includes('[Bridge]') || text.includes('[Call]') || text.includes('[ElevenLabs]')) {
+          // Show all important log types (Bridge, Call, ElevenLabs, Audio, Soniox, STT)
+          if (text.includes('[Bridge]') || text.includes('[Call]') || text.includes('[ElevenLabs]') ||
+              text.includes('[Audio]') || text.includes('[Soniox]') || text.includes('[STT]') ||
+              text.includes('onRemoteStream') || text.includes('=========')) {
             console.log(`[Browser:${webhook.id}]`, text);
           }
         });
