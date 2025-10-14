@@ -34,6 +34,12 @@ class SonioxSTT {
    * @param {MediaStream} audioStream - The audio stream to transcribe
    */
   async initialize(audioStream) {
+    console.log('[Soniox] ========== INITIALIZING STT ==========');
+    console.log('[Soniox] Audio stream provided:', !!audioStream);
+    console.log('[Soniox] Audio stream ID:', audioStream?.id);
+    console.log('[Soniox] Audio stream active:', audioStream?.active);
+    console.log('[Soniox] Audio tracks:', audioStream?.getAudioTracks().length);
+    
     try {
       this.onStatusChange('initializing');
       
@@ -42,21 +48,26 @@ class SonioxSTT {
         sampleRate: this.TARGET_SAMPLE_RATE
       });
       
-      console.log('[Soniox] Audio context created at', this.audioContext.sampleRate, 'Hz');
+      console.log('[Soniox] ✅ Audio context created at', this.audioContext.sampleRate, 'Hz');
       
       // Connect to Soniox WebSocket
+      console.log('[Soniox] Connecting to WebSocket...');
       await this.connectWebSocket();
+      console.log('[Soniox] ✅ WebSocket connected');
       
       // Start processing audio
+      console.log('[Soniox] Starting audio processing...');
       this.startAudioProcessing(audioStream);
+      console.log('[Soniox] ✅ Audio processing started');
       
       this.isActive = true;
       this.onStatusChange('connected');
       
-      console.log('[Soniox] ✅ STT active and ready');
+      console.log('[Soniox] ========== STT FULLY ACTIVE ==========');
       
     } catch (error) {
-      console.error('[Soniox] Initialization failed:', error);
+      console.error('[Soniox] ❌❌❌ Initialization failed:', error);
+      console.error('[Soniox] Error stack:', error.stack);
       this.onStatusChange('error');
       this.onError(error);
       throw error;
@@ -76,7 +87,7 @@ class SonioxSTT {
       this.ws.binaryType = 'arraybuffer';
 
       this.ws.onopen = () => {
-        console.log('[Soniox] ✅ WebSocket connected');
+        console.log('[Soniox] ✅✅✅ WebSocket CONNECTED successfully!');
         
         // Send configuration message
         const config = {
@@ -94,8 +105,9 @@ class SonioxSTT {
           }
         };
         
-        console.log('[Soniox] Sending config:', config);
+        console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));
         this.ws.send(JSON.stringify(config));
+        console.log('[Soniox] ✅ Config sent, waiting for acknowledgment...');
         
         resolve();
       };
@@ -157,7 +169,7 @@ class SonioxSTT {
           // Update accumulated transcripts
           if (finalText) {
             this.currentTranscript += finalText;
-            console.log('[Soniox] Final text:', finalText);
+            console.log('[Soniox] ✅ Final text added:', finalText, '| Total:', this.currentTranscript);
           }
           
           // Update partial transcript
@@ -166,17 +178,20 @@ class SonioxSTT {
           // Send partial updates (final + partial)
           const fullPartial = this.currentTranscript + partialText;
           if (fullPartial) {
+            console.log('[Soniox] 📝 Partial update:', fullPartial);
             this.onPartialTranscript(fullPartial);
           }
           
           // If endpoint detected, send complete transcript and reset
           if (foundEndToken && this.currentTranscript.trim()) {
-            console.log('[Soniox] ✅ Complete transcript:', this.currentTranscript);
+            console.log('[Soniox] ========== ENDPOINT DETECTED ==========');
+            console.log('[Soniox] ✅✅✅ Complete transcript:', this.currentTranscript);
             this.onTranscript(this.currentTranscript.trim());
             
             // Reset for next utterance
             this.currentTranscript = '';
             this.partialTranscript = '';
+            console.log('[Soniox] Reset for next utterance');
           }
         }
         

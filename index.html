@@ -871,23 +871,29 @@
         console.log('=== NEW ARCHITECTURE: Phone → Soniox STT → ElevenLabs (text) → Phone ===');
 
         // STEP 1: Initialize Soniox STT for transcription
+        console.log('[STT] ========== INITIALIZING SONIOX STT ==========');
+        console.log('[STT] phoneAudioStream available:', !!phoneAudioStream);
+        console.log('[STT] Soniox API key configured:', !!sonioxConfig.apiKey);
         addStatus('🎤 Starting Soniox STT...', 'info');
         sonioxSTT = new SonioxSTT({
           apiKey: sonioxConfig.apiKey,
           onTranscript: (text) => {
             // Called when complete transcript is ready (after endpoint detection)
-            console.log('[STT→AI] Complete transcript ready:', text);
+            console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
             
             // Send to ElevenLabs as text message
             if (elevenLabsBridge) {
+              console.log('[STT→AI] Sending to ElevenLabs:', text);
               elevenLabsBridge.sendTextMessage(text);
+            } else {
+              console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
             }
           },
           onPartialTranscript: (text) => {
             // Called for partial/interim results
-            console.log('[STT] Partial:', text);
-            // Could update UI with partial results if needed
+            console.log('[STT] 📝 Partial transcript:', text);
+            addStatus(`🗣️ Hearing: "${text}"`, 'info');
           },
           onStatusChange: (status) => {
             console.log('[Soniox] Status:', status);
