@@ -499,6 +499,14 @@
           // This is the audio FROM the remote party (what you HEAR)
           phoneAudioStream = stream;
           
+          // IMPORTANT: Initialize AI agent now that we have phone audio
+          if (window.inboundCallId && !elevenLabsBridge && !sonioxSTT) {
+            console.log('[Audio] Remote stream received, initializing AI agent with audio...');
+            setTimeout(() => {
+              initializeElevenLabsBridge();
+            }, 1000); // Brief delay to ensure stream is stable
+          }
+          
           console.log('[Audio] Remote party stream received:', {
             id: stream.id,
             active: stream.active,
@@ -597,19 +605,16 @@
           }
           
           // When we get "display" event, it typically means call progress/answered
-          // Wait a bit to ensure the remote party has fully answered
-          if (type.name === "display" && !elevenLabsBridge && phoneAudioStream) {
-            addStatus('📞 Call appears to be answered, starting recording and AI agent...', 'success');
+          // For inbound calls, we handle initialization in onRemoteStream instead
+          if (type.name === "display" && !window.inboundCallId && !elevenLabsBridge && phoneAudioStream) {
+            addStatus('📞 Call appears to be answered (outbound mode)', 'success');
             
             // Start recording immediately when call is answered
             if (currentCallId) {
               startRecording(currentCallId);
             }
             
-            // Wait briefly before starting AI agent
-            setTimeout(() => {
-              initializeElevenLabsBridge();
-            }, 500);
+            // Note: For inbound calls, AI is initialized in onRemoteStream
           }
         },
         onDialogState: async (call) => {
@@ -670,8 +675,8 @@
                   // Start recording
                   startRecording(currentCallId);
                   
-                  // Start AI agent immediately
-                  initializeElevenLabsBridge();
+                  // Don't initialize AI here - wait for onRemoteStream to fire
+                  console.log('[Call] Calls bridged, waiting for remote audio stream...');
                 } else {
                   const errorText = await res.text();
                   console.error('[Call] Bridge failed:', res.status, errorText);
