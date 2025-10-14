@@ -288,6 +288,23 @@ class SonioxSTT {
       // Get audio data (already at 16kHz thanks to AudioContext)
       const inputData = e.inputBuffer.getChannelData(0);
       
+      // Check if audio contains actual sound
+      let sum = 0;
+      let maxSample = 0;
+      for (let i = 0; i < inputData.length; i++) {
+        const abs = Math.abs(inputData[i]);
+        sum += abs;
+        if (abs > maxSample) maxSample = abs;
+      }
+      const avgAmplitude = sum / inputData.length;
+      
+      if (debugCounter % 50 === 0) {
+        console.log('[Soniox] Audio chunk #' + debugCounter, '- Avg:', avgAmplitude.toFixed(4), 'Max:', maxSample.toFixed(4));
+        if (maxSample < 0.001) {
+          console.warn('[Soniox] ⚠️ AUDIO IS SILENT! Max sample:', maxSample);
+        }
+      }
+      
       // Convert Float32 to PCM 16-bit
       const pcmData = this.float32ToPcm16(inputData);
       
