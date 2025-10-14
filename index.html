@@ -517,19 +517,10 @@
           // ALWAYS set phoneAudioStream - this is the WebRTC audio we need!
           phoneAudioStream = stream;
           console.log('[Audio] ✅ phoneAudioStream SET:', stream.id);
+          console.log('[Audio] Note: Stream captured, but will initialize AI AFTER bridge completes');
           
-          // Initialize AI if this is an inbound call and we haven't initialized yet
-          if (window.inboundCallId && !sonioxSTT) {
-            console.log('[Audio] ✅✅✅ INITIALIZING AI with WebRTC audio stream!');
-            addStatus('🎤 Remote audio ready, starting STT+AI...', 'success');
-            
-            // Initialize immediately (audio is ready)
-            setTimeout(() => {
-              initializeElevenLabsBridge();
-            }, 500);
-          } else {
-            console.log('[Audio] Skipping init - inbound:', !!window.inboundCallId, 'soniox exists:', !!sonioxSTT);
-          }
+          // DON'T initialize here - the stream has no audio yet (not bridged)
+          // Initialization happens after bridge completes (see bridge callback)
           
           console.log('[Audio] Remote party stream received:', {
             id: stream.id,
@@ -691,7 +682,7 @@
               .then(async res => {
                 if (res && res.ok) {
                   console.log('[Call] ✅ Calls bridged together!');
-                  addStatus('✅ Calls bridged! Starting AI agent...', 'success');
+                  addStatus('✅ Calls bridged! Audio should now be flowing...', 'success');
                   
                   // Now use the park call ID for recording
                   currentCallId = currentCallId; // Keep using park call ID
@@ -699,8 +690,16 @@
                   // Start recording
                   startRecording(currentCallId);
                   
-                  // Note: AI initialization happens in onRemoteStream callback
-                  console.log('[Call] Calls bridged. AI will initialize when onRemoteStream fires with WebRTC audio.');
+                  // CRITICAL: Wait for audio to flow through bridge, THEN initialize AI
+                  console.log('[Call] Waiting 2 seconds for bridge audio to flow...');
+                  setTimeout(() => {
+                    console.log('[Call] ⏰ Bridge should be active, initializing AI now...');
+                    if (phoneAudioStream && !sonioxSTT) {
+                      initializeElevenLabsBridge();
+                    } else {
+                      console.warn('[Call] ⚠️ Cannot initialize - phoneAudioStream:', !!phoneAudioStream, 'sonioxSTT exists:', !!sonioxSTT);
+                    }
+                  }, 2000); // Wait 2 seconds for bridge audio to flow
                 } else {
                   const errorText = await res.text();
                   console.error('[Call] Bridge failed:', res.status, errorText);
