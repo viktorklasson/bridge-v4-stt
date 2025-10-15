@@ -6,6 +6,7 @@
 class SonioxSTT {
   constructor(config) {
     this.apiKey = config.apiKey;
+    this.context = config.context || ''; // Context/prompt for better transcription accuracy
     this.onTranscript = config.onTranscript || (() => {}); // Called when full transcript ready (after endpoint)
     this.onPartialTranscript = config.onPartialTranscript || (() => {}); // Called for partial updates
     this.onStatusChange = config.onStatusChange || (() => {});
@@ -107,7 +108,9 @@ class SonioxSTT {
           audio_format: 'pcm_s16le',
           sample_rate: this.TARGET_SAMPLE_RATE,
           num_channels: 1,
-          language_hints: ['sv']  // Swedish language
+          language_hints: ['sv'],  // Swedish language
+          // Context for better accuracy (domain-specific terms, names, products)
+          context: this.context || ''
         };
         
         console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));

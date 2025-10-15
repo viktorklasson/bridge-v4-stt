@@ -945,6 +945,14 @@
         addStatus('🎤 Starting Soniox STT with CORRECTED API...', 'info');
         sonioxSTT = new SonioxSTT({
           apiKey: sonioxConfig.apiKey,
+          // Add context to improve transcription accuracy
+          context: `
+            Fello support line. Customer service for mobile subscriptions and plans.
+            Common topics: abonnemang (subscription), pris (price), byte (change), 
+            telefon (phone), mobilnummer (mobile number), faktura (invoice),
+            uppgradera (upgrade), säga upp (cancel), kundtjänst (customer service).
+            Company name: Fello
+          `.trim(),
           onTranscript: (text) => {
             // Called when complete transcript is ready (after endpoint detection)
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
