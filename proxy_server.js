@@ -179,9 +179,11 @@ async function handleWebhook(req, res) {
               '--disable-dev-shm-usage',
               '--disable-gpu',
               '--autoplay-policy=no-user-gesture-required',
-              '--use-fake-device-for-media-stream',
-              '--use-fake-ui-for-media-stream',
-              '--disable-web-security'
+              // REMOVED: '--use-fake-device-for-media-stream' - was creating silent audio
+              // REMOVED: '--use-fake-ui-for-media-stream' - was blocking real audio
+              '--disable-web-security',
+              // Enable real audio with PulseAudio
+              '--enable-features=WebRTCPipeWireCapturer'
             ]
           });
           console.log('[WEBHOOK] ✅ Browser initialized');

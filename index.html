@@ -279,20 +279,8 @@
       
       if (constraints && constraints.audio) {
         // Verto wants audio - give it virtual audio (AI output → Remote Party)
-        console.log('[Bridge] → Returning VIRTUAL audio source (headless bridge)');
+        console.log('[Bridge] → Returning VIRTUAL audio source for Verto output (AI→Phone)');
         addStatus('📡 Verto: using virtual audio (AI→Phone)', 'info');
-        
-        // WORKAROUND: Also try to get real microphone for STT
-        // In Puppeteer with fake device, this gives us a fake stream we can use
-        try {
-          const realMic = await originalGetUserMedia({audio: true});
-          console.log('[Bridge] ✅ Got fake mic stream for STT:', realMic.id);
-          // Store for Soniox to use
-          window.fakeMicStreamForSTT = realMic;
-        } catch (e) {
-          console.log('[Bridge] ⚠️ Could not get fake mic:', e.message);
-        }
-        
         return virtualAudioSource.getMediaStream();
       }
       
