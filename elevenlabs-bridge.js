@@ -343,15 +343,15 @@ class ElevenLabsBridge {
 
     console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // Use standard user_message format as per ElevenLabs SDK
+    // CORRECT format from ElevenLabs website: "text" not "message"!
     const message = {
       type: 'user_message',
-      message: text.trim()
+      text: text.trim()  // KEY FIX: "text" not "message"
     };
     
     console.log('[ElevenLabs] Sending message:', JSON.stringify(message));
     this.ws.send(JSON.stringify(message));
-    console.log('[ElevenLabs] ✅ Text message sent');
+    console.log('[ElevenLabs] ✅ Text message sent with CORRECT format');
     console.log('[ElevenLabs] Waiting for AI response...');
   }
 
