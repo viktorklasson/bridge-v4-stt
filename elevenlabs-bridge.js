@@ -343,19 +343,13 @@ class ElevenLabsBridge {
 
     console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // DON'T send plain text - it causes "Invalid message received" error!
-    // ElevenLabs needs structured JSON
-    
-    // Based on agent_chat_response_part structure, try user equivalent
+    // Use standard user_message format as per ElevenLabs SDK
     const message = {
-      type: 'user_text_event',
-      user_text_part: {
-        text: text.trim(),
-        type: 'input'
-      }
+      type: 'user_message',
+      message: text.trim()
     };
     
-    console.log('[ElevenLabs] Sending structured format:', JSON.stringify(message));
+    console.log('[ElevenLabs] Sending message:', JSON.stringify(message));
     this.ws.send(JSON.stringify(message));
     console.log('[ElevenLabs] ✅ Text message sent');
     console.log('[ElevenLabs] Waiting for AI response...');
