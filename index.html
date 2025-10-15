@@ -211,6 +211,13 @@
       apiKey: '6d2e14f6a742cfaef685a06fcee55941868e544eae32a805090a37b4d04510d0'
     };
 
+    // Thinking sounds configuration
+    const thinkingSounds = {
+      folder: '/tic',
+      files: ['tic1.mp3', 'tic2.mp3', 'tic3.mp3', 'tic4.mp3', 'tic5.mp3'], // Add your sound files
+      enabled: true
+    };
+
     // Telnect recording configuration
     const telnectConfig = {
       apiUrl: '/proxy/telnect/api/v1', // Use proxy to avoid CORS
@@ -234,6 +241,50 @@
     // Create virtual audio source (this will be the "microphone" for AI audio)
     // Using 48kHz to match both phone system and ElevenLabs
     virtualAudioSource = new VirtualAudioSource(48000);
+
+    // Helper function to play a random thinking sound
+    async function playThinkingSound() {
+      if (!thinkingSounds.enabled || !virtualAudioSource) {
+        console.log('[Thinking] Thinking sounds disabled or no virtual audio');
+        return;
+      }
+
+      try {
+        // Pick random sound file
+        const randomIndex = Math.floor(Math.random() * thinkingSounds.files.length);
+        const soundFile = thinkingSounds.files[randomIndex];
+        const soundUrl = `${thinkingSounds.folder}/${soundFile}`;
+
+        console.log('[Thinking] 🎵 Playing thinking sound:', soundFile);
+        addStatus('🤔 Playing thinking sound...', 'info');
+
+        // Fetch and decode the audio file
+        const response = await fetch(soundUrl);
+        const arrayBuffer = await response.arrayBuffer();
+
+        // Decode audio
+        const audioContext = new AudioContext({ sampleRate: 48000 });
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        console.log('[Thinking] Audio decoded - Duration:', audioBuffer.duration, 's');
+
+        // Convert to PCM16 and send to virtual audio source
+        const channelData = audioBuffer.getChannelData(0); // Mono
+        const pcm16 = new Int16Array(channelData.length);
+
+        for (let i = 0; i < channelData.length; i++) {
+          const s = Math.max(-1, Math.min(1, channelData[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        // Send to virtual audio (caller will hear it)
+        virtualAudioSource.addAudioData(pcm16);
+        console.log('[Thinking] ✅ Thinking sound sent to caller');
+
+      } catch (error) {
+        console.error('[Thinking] Failed to play thinking sound:', error);
+      }
+    }
 
     // Pre-create the synthetic stream context to avoid user gesture issues
     try {
@@ -982,19 +1033,22 @@ tjugohundra, tjugohundraett, tjugohundratvå, tjugohundratre, tjugohundrafyra, t
 nittinijo, nittio, nittiett, nittitvå, nittitre, nittifyra, nittifem, nittisex, nittisju, nittiåtta, åttinijo, åttio, åttiett, åttitvå, åttitre, åttifyra, åttifem, åttisex, åttisju, åttiåtta, sjuttinijo, sjuttio, sjuttiett, sjuttitvå, sjuttitre, sjuttifyra, sjuttifem, sjuttisex, sjuttisju, sjuttiåtta, sextinijo, sextio, sextiett, sextitvå, sextitre, sextifyra, sextifem, sextisex, sextisju, sextiåtta, femtinijo, femtio, femtiett, femtitvå, femtitre, femtifyra, femtifem, femtisex, femtisju, femtiåtta, förtinijo, förtio, förtiett, förtitvå, förtitre, förtifyra, förtifem, förtisex, förtisju, förtiåtta, trettinijo, trettio, trettiett, trettitvå, trettitre, trettifyra, trettifem, trettisex, trettisju, trettiåtta, tjugonijo, tjugo, tjugoett, tjugotvå, tjugotre, tjugofyra, tjugofem, tjugosex, tjugosju, tjugoåtta, nitton, arton, sjutton, sexton, femton, fjorton, tretton, tolv, elva, tió, nijo, åtta, sju, sex, fem, fyra, tre, två, ett,
 nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, nollåtta, nollnijo
           `.trim(),
-            onTranscript: (text) => {
-              // Called when complete transcript is ready (after endpoint detection)
-              console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
-              addStatus(`👤 User said: "${text}"`, 'info');
+          onTranscript: (text) => {
+            // Called when complete transcript is ready (after endpoint detection)
+            console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
+            addStatus(`👤 User said: "${text}"`, 'info');
 
-              // Send to ElevenLabs as text message
-              if (elevenLabsBridge) {
-                console.log('[STT→AI] Sending to ElevenLabs:', text);
-                elevenLabsBridge.sendTextMessage(text);
-              } else {
-                console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
-              }
-            },
+            // Play thinking sound IMMEDIATELY (while AI processes)
+            playThinkingSound();
+
+            // Send to ElevenLabs as text message
+            if (elevenLabsBridge) {
+              console.log('[STT→AI] Sending to ElevenLabs:', text);
+              elevenLabsBridge.sendTextMessage(text);
+            } else {
+              console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
+            }
+          },
             onPartialTranscript: (text) => {
               // Called for partial/interim results
               console.log('[STT] 📝 Partial transcript:', text);
