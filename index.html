@@ -510,10 +510,20 @@
           // But don't initialize Soniox WebSocket yet - wait for bridge
           if (window.inboundCallId && !window.preConnectedAudioContext) {
             console.log('[Audio] 🎤 PRE-CONNECTING to audio stream (before bridge)...');
+            console.log('[Audio] Stream tracks:', stream.getAudioTracks().map(t => ({
+              id: t.id,
+              label: t.label,
+              enabled: t.enabled,
+              muted: t.muted,
+              readyState: t.readyState
+            })));
+            
             window.preConnectedAudioContext = new AudioContext({ sampleRate: 16000 });
+            console.log('[Audio] AudioContext created - State:', window.preConnectedAudioContext.state, 'Sample rate:', window.preConnectedAudioContext.sampleRate);
+            
             window.preConnectedAudioSource = window.preConnectedAudioContext.createMediaStreamSource(stream);
+            console.log('[Audio] MediaStreamSource created');
             console.log('[Audio] ✅ Audio context pre-connected to live stream');
-            console.log('[Audio] Context state:', window.preConnectedAudioContext.state);
             console.log('[Audio] Will initialize Soniox WebSocket after bridge...');
           }
           

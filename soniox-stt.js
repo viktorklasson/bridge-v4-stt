@@ -116,6 +116,7 @@ class SonioxSTT {
       };
 
       this.ws.onmessage = (event) => {
+        console.log('[Soniox] 📨 WebSocket message received, type:', typeof event.data, 'length:', event.data?.length || 'N/A');
         this.handleMessage(event.data);
       };
 
@@ -334,6 +335,10 @@ class SonioxSTT {
       newBuffer.set(this.audioBuffer);
       newBuffer.set(pcmData, this.audioBuffer.length);
       this.audioBuffer = newBuffer;
+      
+      if (debugCounter <= 5) {
+        console.log('[Soniox] Buffer size after adding:', this.audioBuffer.length, 'samples');
+      }
 
       // Send complete chunks
       while (this.audioBuffer.length >= this.SAMPLES_PER_CHUNK) {
@@ -342,19 +347,36 @@ class SonioxSTT {
         
         // Send as binary data
         const bytes = new Uint8Array(chunk.buffer);
+        
+        if (chunkCount === 0) {
+          console.log('[Soniox] 🚀 FIRST CHUNK - Size:', bytes.length, 'bytes, Samples:', chunk.length);
+          console.log('[Soniox] First 10 PCM values:', Array.from(chunk.slice(0, 10)));
+          console.log('[Soniox] WebSocket readyState:', this.ws.readyState, '(1=OPEN)');
+        }
+        
         this.ws.send(bytes);
         
         chunkCount++;
         if (chunkCount === 1 || chunkCount % 10 === 0) {
-          console.log('[Soniox] 📤 Sent', chunkCount, 'audio chunks (', chunk.length, 'samples each)');
+          console.log('[Soniox] 📤 Sent chunk #' + chunkCount, '- Size:', bytes.length, 'bytes,', chunk.length, 'samples');
         }
       }
     };
 
     // Connect audio pipeline
-    this.audioSource.connect(this.audioProcessor);
-    this.audioProcessor.connect(this.audioContext.destination);
+    console.log('[Soniox] 🔌 Connecting audio pipeline...');
+    console.log('[Soniox] audioSource:', this.audioSource);
+    console.log('[Soniox] audioProcessor:', this.audioProcessor);
+    console.log('[Soniox] audioContext.destination:', this.audioContext.destination);
+    console.log('[Soniox] audioContext.state:', this.audioContext.state);
     
+    this.audioSource.connect(this.audioProcessor);
+    console.log('[Soniox] ✅ Source connected to processor');
+    
+    this.audioProcessor.connect(this.audioContext.destination);
+    console.log('[Soniox] ✅ Processor connected to destination');
+    
+    console.log('[Soniox] 🎤 Audio pipeline fully connected - callbacks should start firing NOW');
     console.log('[Soniox] Audio processing started');
   }
 
