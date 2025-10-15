@@ -947,14 +947,9 @@
           }
         });
 
-        // Initialize Soniox with REAL phone audio stream
-        // If we pre-connected the audio context, use that (better audio capture)
-        await sonioxSTT.initialize(
-          phoneAudioStream,
-          window.preConnectedAudioContext,
-          window.preConnectedAudioSource
-        );
-        addStatus('✅ Soniox STT active - listening to REAL phone audio', 'success');
+        // Initialize Soniox SDK with phone audio stream
+        await sonioxSTT.initialize(phoneAudioStream);
+        addStatus('✅ Soniox SDK active - using official implementation', 'success');
 
         // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
         addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
