@@ -348,16 +348,22 @@ class SonioxSTT {
         // Send as binary data
         const bytes = new Uint8Array(chunk.buffer);
         
-        if (chunkCount === 0) {
-          console.log('[Soniox] 🚀 FIRST CHUNK - Size:', bytes.length, 'bytes, Samples:', chunk.length);
-          console.log('[Soniox] First 10 PCM values:', Array.from(chunk.slice(0, 10)));
+        chunkCount++;
+        
+        if (chunkCount === 1) {
+          console.log('[Soniox] 🚀🚀🚀 SENDING FIRST CHUNK');
+          console.log('[Soniox] Chunk size:', bytes.length, 'bytes');
+          console.log('[Soniox] Samples:', chunk.length);
+          console.log('[Soniox] First 20 PCM Int16 values:', Array.from(chunk.slice(0, 20)));
+          console.log('[Soniox] First 20 bytes (Uint8):', Array.from(bytes.slice(0, 20)));
           console.log('[Soniox] WebSocket readyState:', this.ws.readyState, '(1=OPEN)');
+          console.log('[Soniox] WebSocket bufferedAmount:', this.ws.bufferedAmount);
         }
         
         this.ws.send(bytes);
+        console.log('[Soniox] ✅ ws.send() called for chunk #' + chunkCount);
         
-        chunkCount++;
-        if (chunkCount === 1 || chunkCount % 10 === 0) {
+        if (chunkCount <= 5 || chunkCount % 10 === 0) {
           console.log('[Soniox] 📤 Sent chunk #' + chunkCount, '- Size:', bytes.length, 'bytes,', chunk.length, 'samples');
         }
       }
