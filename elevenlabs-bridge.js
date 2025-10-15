@@ -343,15 +343,39 @@ class ElevenLabsBridge {
 
     console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // Send user message as text (try standard format)
-    const message = {
-      type: 'user_message',
-      user_message: text.trim()
+    // Try simple "text" field first
+    const simpleMessage = {
+      text: text.trim()
     };
-
-    console.log('[ElevenLabs] Message payload:', JSON.stringify(message));
-    this.ws.send(JSON.stringify(message));
-    console.log('[ElevenLabs] ✅ Text message sent via WebSocket');
+    
+    console.log('[ElevenLabs] Trying simple format (just text field):', JSON.stringify(simpleMessage));
+    this.ws.send(JSON.stringify(simpleMessage));
+    
+    // Also try user_input format
+    setTimeout(() => {
+      const message2 = {
+        type: 'user_input',
+        text: text.trim()
+      };
+      console.log('[ElevenLabs] Also trying user_input format:', JSON.stringify(message2));
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(message2));
+      }
+    }, 100);
+    
+    // And user_message format
+    setTimeout(() => {
+      const message3 = {
+        type: 'user_message',
+        user_message: text.trim()
+      };
+      console.log('[ElevenLabs] Also trying user_message format:', JSON.stringify(message3));
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(message3));
+      }
+    }, 200);
+    
+    console.log('[ElevenLabs] ✅ Text messages sent, trying multiple formats');
     console.log('[ElevenLabs] Waiting for AI response...');
   }
 
