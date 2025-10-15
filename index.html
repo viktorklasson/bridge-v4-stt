@@ -1,4 +1,5 @@
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,43 +12,52 @@
       padding: 20px;
       background: #f5f5f5;
     }
+
     .container {
       background: white;
       padding: 30px;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
+
     h1 {
       color: #333;
       margin-bottom: 20px;
     }
+
     .status {
       padding: 15px;
       margin: 10px 0;
       border-radius: 4px;
       font-size: 14px;
     }
+
     .status.info {
       background: #e3f2fd;
       border-left: 4px solid #2196F3;
     }
+
     .status.error {
       background: #ffebee;
       border-left: 4px solid #f44336;
     }
+
     .status.success {
       background: #e8f5e9;
       border-left: 4px solid #4caf50;
     }
+
     .call-info {
       margin-top: 20px;
       padding: 15px;
       background: #fafafa;
       border-radius: 4px;
     }
+
     .call-info p {
       margin: 5px 0;
     }
+
     .audio-monitor {
       margin-top: 20px;
       padding: 20px;
@@ -55,19 +65,23 @@
       border-radius: 8px;
       border: 2px solid #e0e0e0;
     }
+
     .audio-monitor h3 {
       margin-top: 0;
       font-size: 16px;
       color: #333;
     }
+
     .audio-level {
       margin: 15px 0;
     }
+
     .audio-level-label {
       font-size: 14px;
       margin-bottom: 5px;
       font-weight: bold;
     }
+
     .audio-level-bar {
       height: 30px;
       background: #e0e0e0;
@@ -75,12 +89,14 @@
       overflow: hidden;
       position: relative;
     }
+
     .audio-level-fill {
       height: 100%;
       background: linear-gradient(to right, #4caf50, #8bc34a, #ffeb3b, #ff9800, #f44336);
       width: 0%;
       transition: width 0.1s ease-out;
     }
+
     .audio-level-value {
       position: absolute;
       right: 10px;
@@ -90,6 +106,7 @@
       font-weight: bold;
       color: #333;
     }
+
     .audio-status {
       display: inline-block;
       width: 12px;
@@ -98,13 +115,22 @@
       background: #ccc;
       margin-left: 10px;
     }
+
     .audio-status.active {
       background: #4caf50;
       animation: pulse 1s infinite;
     }
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
     }
   </style>
 </head>
@@ -112,23 +138,24 @@
 <body>
   <div class="container">
     <h1>📞 Bridge v3 - Phone Dialer</h1>
-    
-    <button id="start-button" style="padding: 15px 30px; font-size: 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 20px;">
+
+    <button id="start-button"
+      style="padding: 15px 30px; font-size: 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 20px;">
       🚀 START BRIDGE (Click to enable audio)
     </button>
-    
+
     <div class="call-info">
       <p><strong>Calling:</strong> <span id="numberToCall">+46737606800</span></p>
       <p><strong>From:</strong> <span id="numberToCallFrom">+46775893847</span></p>
     </div>
-    
+
     <div class="audio-monitor">
       <h3>🎵 Audio & Transcription Monitor</h3>
       <p style="font-size: 12px; color: #666; margin: 5px 0 15px 0;">
         <strong>NEW Architecture:</strong> Phone → Soniox STT → ElevenLabs (text) → Phone<br>
         <em>Phone audio → Soniox transcription → AI text response → TTS audio output</em>
       </p>
-      
+
       <div class="audio-level">
         <div class="audio-level-label">
           🎤 Phone Audio → Soniox STT
@@ -139,7 +166,7 @@
           <div class="audio-level-value" id="phone-to-agent-value">0%</div>
         </div>
       </div>
-      
+
       <div class="audio-level">
         <div class="audio-level-label">
           🔊 AI TTS Audio → Remote Party
@@ -151,7 +178,7 @@
         </div>
       </div>
     </div>
-    
+
     <div id="status-container"></div>
   </div>
 
@@ -195,11 +222,11 @@
     let phoneAudioStream = null;
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
-    
+
     // Audio level tracking for decay
     let lastPhoneLevel = 0;
     let lastAgentLevel = 0;
-    
+
     // Pre-create audio context for synthetic stream (avoid user gesture requirement)
     let syntheticStreamContext = null;
     let syntheticStreamDestination = null;
@@ -207,7 +234,7 @@
     // Create virtual audio source (this will be the "microphone" for AI audio)
     // Using 48kHz to match both phone system and ElevenLabs
     virtualAudioSource = new VirtualAudioSource(48000);
-    
+
     // Pre-create the synthetic stream context to avoid user gesture issues
     try {
       syntheticStreamContext = new AudioContext({ sampleRate: 48000 });
@@ -216,7 +243,7 @@
     } catch (e) {
       console.warn('[Bridge] Could not pre-create context:', e);
     }
-    
+
     // Add initial silence to keep stream active
     virtualAudioSource.addSilence(100);
     setInterval(() => {
@@ -224,7 +251,7 @@
         virtualAudioSource.addSilence(50); // Keep alive with silence
       }
     }, 5000);
-    
+
     addStatus('✓ Virtual audio source created for AI→Phone bridge', 'success');
 
     // Check if running in headless mode or inbound call mode
@@ -232,16 +259,16 @@
     const isHeadless = urlParams.get('headless') === 'true';
     const inboundCallId = urlParams.get('callId');
     const isInbound = urlParams.get('inbound') === 'true';
-    
+
     // Store inbound call ID if provided
     if (inboundCallId && isInbound) {
       window.inboundCallId = inboundCallId;
       console.log('[Bridge] 📞 INBOUND CALL MODE - Call ID:', inboundCallId);
     }
-    
+
     if (isHeadless || (inboundCallId && isInbound)) {
       console.log('[Bridge] 🤖 Running in HEADLESS/INBOUND mode - auto-resuming contexts...');
-      
+
       // Auto-resume AudioContexts (no user gesture needed in Puppeteer)
       setTimeout(async () => {
         try {
@@ -253,7 +280,7 @@
             await syntheticStreamContext.resume();
             console.log('[Bridge] ✅ Synthetic stream context auto-resumed');
           }
-          
+
           // Auto-start bridge for inbound calls
           if (inboundCallId && isInbound) {
             console.log('[Bridge] 🚀 Auto-starting bridge for inbound call...');
@@ -272,14 +299,14 @@
     // Store reference to real microphone stream when Verto requests it
     let vertoMicrophoneStream = null;
     let phoneToAIStream = null; // Synthetic stream for bridging phone to AI
-    
+
     // Monkey-patch getUserMedia for HEADLESS operation
     const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     let getUserMediaCallCount = 0;
-    navigator.mediaDevices.getUserMedia = async function(constraints) {
+    navigator.mediaDevices.getUserMedia = async function (constraints) {
       getUserMediaCallCount++;
       console.log('[Bridge] getUserMedia intercepted - Call #' + getUserMediaCallCount, constraints);
-      
+
       if (constraints && constraints.audio) {
         // First call is from Verto (for output) - give it virtual audio
         if (getUserMediaCallCount === 1) {
@@ -299,7 +326,7 @@
           return virtualAudioSource.getMediaStream();
         }
       }
-      
+
       return originalGetUserMedia(constraints);
     };
 
@@ -318,11 +345,11 @@
       const fillElement = document.getElementById(`${direction}-level`);
       const valueElement = document.getElementById(`${direction}-value`);
       const statusElement = document.getElementById(`${direction}-status`);
-      
+
       if (fillElement && valueElement && statusElement) {
         fillElement.style.width = `${level}%`;
         valueElement.textContent = `${level}%`;
-        
+
         // Update status indicator (active if level > 5%)
         if (level > 5) {
           statusElement.classList.add('active');
@@ -330,7 +357,7 @@
           statusElement.classList.remove('active');
         }
       }
-      
+
       // Store last levels
       if (direction === 'phone-to-agent') {
         lastPhoneLevel = level;
@@ -338,7 +365,7 @@
         lastAgentLevel = level;
       }
     }
-    
+
     // Decay audio levels over time for smooth visualization
     setInterval(() => {
       // Decay phone level
@@ -351,7 +378,7 @@
           valueElement.textContent = `${lastPhoneLevel}%`;
         }
       }
-      
+
       // Decay agent level
       if (lastAgentLevel > 0) {
         lastAgentLevel = Math.max(0, lastAgentLevel - 3);
@@ -373,7 +400,7 @@
 
       try {
         addStatus(`🔴 Starting recording for call ${callId}...`, 'info');
-        
+
         const response = await fetch(`${telnectConfig.apiUrl}/Calls/${callId}`, {
           method: 'POST',
           headers: {
@@ -397,7 +424,7 @@
           const errorText = await response.text();
           addStatus(`⚠️ Failed to start recording: ${response.status}`, 'error');
           console.error('[Recording] Error:', response.status, errorText);
-          
+
           // Try to parse error as JSON for better debugging
           try {
             const errorJson = JSON.parse(errorText);
@@ -422,7 +449,7 @@
 
       try {
         addStatus(`⏹️ Stopping recording for call ${callId}...`, 'info');
-        
+
         const response = await fetch(`${telnectConfig.apiUrl}/Calls/${callId}`, {
           method: 'POST',
           headers: {
@@ -451,17 +478,17 @@
     }
 
     addStatus('👆 Click START BRIDGE button to begin', 'info');
-    
+
     // Button click handler to start everything (provides user gesture)
     document.getElementById('start-button').addEventListener('click', async () => {
       const button = document.getElementById('start-button');
       button.disabled = true;
       button.textContent = '⏳ Starting...';
       button.style.background = '#999';
-      
+
       addStatus('Starting Bridge v3...', 'info');
       addStatus('Resuming audio contexts...', 'info');
-      
+
       // Resume all audio contexts with user gesture
       try {
         if (virtualAudioSource && virtualAudioSource.audioContext) {
@@ -476,781 +503,783 @@
       } catch (e) {
         console.warn('[Bridge] Could not resume contexts:', e);
       }
-      
+
       button.textContent = '✅ Bridge Active';
       button.style.background = '#4caf50';
-      
+
       startBridge();
     });
-    
+
     function startBridge() {
       addStatus('Attempting to login to Salesys API...', 'info');
 
-    // Use proxy to avoid CORS issues
-    fetch("/proxy/api/dial/easytelecom-v1/login", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + salesysToken
-      }
-    }).then(res => {
-      if (!res.ok) {
-        throw new Error(`Login failed: ${res.status} ${res.statusText}`);
-      }
-      return res.json();
-    }).then(login => {
-      addStatus('✓ Successfully logged in to Salesys', 'success');
-      addStatus('Initializing Verto connection...', 'info');
-      
-      const verto = new $.verto({
-        login: `${login.username}@${login.domain}`,
-        passwd: login.password,
-        iceServers: true,
-        socketUrl: login.url,
-        tag: "audio-stream"
-      }, {
-        onRemoteStream: stream => {
-          console.log("========== onRemoteStream FIRED ==========");
-          console.log('[Audio] Stream ID:', stream.id);
-          console.log('[Audio] Active:', stream.active);
-          console.log('[Audio] Audio tracks:', stream.getAudioTracks().length);
-          console.log('[Audio] Is inbound call:', !!window.inboundCallId);
-          console.log('[Audio] Already initialized:', {elevenlabs: !!elevenLabsBridge, soniox: !!sonioxSTT});
-          
-          addStatus('📞 Incoming audio stream from remote party', 'success');
-          
-          // ALWAYS set phoneAudioStream - this is the WebRTC audio we need!
-          phoneAudioStream = stream;
-          console.log('[Audio] ✅ phoneAudioStream SET:', stream.id);
-          
-          // CRITICAL: Pre-create audio context and connect to stream NOW (while fresh)
-          // But don't initialize Soniox WebSocket yet - wait for bridge
-          if (window.inboundCallId && !window.preConnectedAudioContext) {
-            console.log('[Audio] 🎤 PRE-CONNECTING to audio stream (before bridge)...');
-            console.log('[Audio] Stream tracks:', stream.getAudioTracks().map(t => ({
-              id: t.id,
-              label: t.label,
-              enabled: t.enabled,
-              muted: t.muted,
-              readyState: t.readyState
-            })));
-            
-            window.preConnectedAudioContext = new AudioContext({ sampleRate: 16000 });
-            console.log('[Audio] AudioContext created - State:', window.preConnectedAudioContext.state, 'Sample rate:', window.preConnectedAudioContext.sampleRate);
-            
-            window.preConnectedAudioSource = window.preConnectedAudioContext.createMediaStreamSource(stream);
-            console.log('[Audio] MediaStreamSource created');
-            console.log('[Audio] ✅ Audio context pre-connected to live stream');
-            console.log('[Audio] Will initialize Soniox WebSocket after bridge...');
-          }
-          
-          console.log('[Audio] Remote party stream received:', {
-            id: stream.id,
-            active: stream.active,
-            audioTracks: stream.getAudioTracks().length
-          });
-          
-          // Connect audio element but MUTE it (we don't want to play it in browser)
-          // The audio goes to the AI bridge instead
-          const audioElement = document.getElementById('audio-stream');
-          if (audioElement) {
-            audioElement.srcObject = stream;
-            audioElement.muted = true; // MUTE - audio goes to AI, not speakers!
-            audioElement.play().catch(e => console.log('[Audio] Autoplay prevented:', e));
-            console.log('[Audio] ✅ Phone audio muted in browser (routed to AI instead)');
-            addStatus('🔇 Phone audio muted (routing to AI)', 'success');
-          }
-          
-          // Monitor incoming audio levels
-          const monitorContext = new AudioContext();
-          const monitorSource = monitorContext.createMediaStreamSource(stream);
-          const monitorAnalyser = monitorContext.createAnalyser();
-          monitorSource.connect(monitorAnalyser);
-          
-          const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
-          setInterval(() => {
-            monitorAnalyser.getByteFrequencyData(monitorData);
-            const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
-            if (avg > 5) {
-              console.log('[Audio] Remote party speaking - level:', Math.round(avg));
-            }
-          }, 2000);
-          
-          const audioTrack = stream.getAudioTracks()[0];
-          if (audioTrack) {
-            const settings = audioTrack.getSettings();
-            const capabilities = audioTrack.getCapabilities ? audioTrack.getCapabilities() : {};
-            const constraints = audioTrack.getConstraints ? audioTrack.getConstraints() : {};
-            
-            console.log('Audio track:', audioTrack);
-            console.log('Audio settings:', JSON.stringify(settings, null, 2));
-            console.log('Audio capabilities:', JSON.stringify(capabilities, null, 2));
-            console.log('Audio constraints:', JSON.stringify(constraints, null, 2));
-            console.table(settings);
-            console.table(capabilities);
-            
-            // Try to get sample rate from different sources
-            const sampleRate = settings.sampleRate || 
-                              (capabilities.sampleRate && capabilities.sampleRate.max) || 
-                              '48000 (default)';
-            const channels = settings.channelCount || 1;
-            
-            addStatus(`🎵 Audio: ${sampleRate}Hz, ${channels} channel(s)`, 'info');
-            
-            // Also try to get info from AudioContext
-            const audioElement = document.getElementById('audio-stream');
-            if (audioElement && audioElement.srcObject) {
-              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-              addStatus(`🎵 AudioContext sample rate: ${audioCtx.sampleRate}Hz`, 'info');
-            }
-          }
-        },
-        onWSClose: () => {
-          console.debug("onWSClose");
-          addStatus('WebSocket connection closed', 'error');
-        },
-        onMessage: (verto, call, type) => {
-          console.debug("onMessage", type);
-          addStatus(`Message received: ${type.name}`, 'info');
-
-          if (type.name === "clientReady") {
-            // Check if this is an inbound call (webhook/headless mode)
-            if (window.inboundCallId) {
-              addStatus('✅ Client ready - answering inbound call...', 'info');
-              console.log('[Call] Inbound mode - answering call:', window.inboundCallId);
-              
-              // Answer the inbound call directly (no need to call "park")
-              // The call is already active, we just need to connect to it
-              verto.newCall({
-                caller_id_name: null,
-                caller_id_number: null,
-                destination_number: "park", // Still need this to establish WebRTC
-                useStereo: false,
-                useVideo: false
-              });
-            } else {
-              // Outbound mode - create call to park as usual
-              addStatus('Client ready, creating call to "park"...', 'info');
-              verto.newCall({
-                caller_id_name: null,
-                caller_id_number: null,
-                destination_number: "park",
-                useStereo: false,
-                useVideo: false
-              });
-            }
-          }
-          
-          // When we get "display" event, it typically means call progress/answered
-          // For inbound calls, we handle initialization in onRemoteStream instead
-          if (type.name === "display" && !window.inboundCallId && !elevenLabsBridge && phoneAudioStream) {
-            addStatus('📞 Call appears to be answered (outbound mode)', 'success');
-            
-            // Start recording immediately when call is answered
-            if (currentCallId) {
-              startRecording(currentCallId);
-            }
-            
-            // Note: For inbound calls, AI is initialized in onRemoteStream
-          }
-        },
-        onDialogState: async (call) => {
-          console.log("onDialogState", call);
-          
-          // Format call state nicely
-          const stateInfo = {
-            state: call.state,
-            direction: call.direction,
-            callId: call.callID
-          };
-          
-          addStatus(`Call state: ${JSON.stringify(stateInfo, null, 2)}`, 'info');
-
-          if (call.state === $.verto.enum.state.active) {
-            // Store the call ID for later use (recording, etc.)
-            currentCallId = call.params.variables.verto_svar_api_callid;
-            console.log('[Call] Stored call ID:', currentCallId);
-            
-            // Check if this is an inbound call (headless webhook mode)
-            if (window.inboundCallId && !window.inboundCallProcessed) {
-              window.inboundCallProcessed = true; // Prevent duplicate processing
-              
-              addStatus('✅ Park call active! Now answering and bridging inbound call...', 'success');
-              console.log('[Call] Inbound mode - Park call ID:', currentCallId);
-              console.log('[Call] Inbound call to answer:', window.inboundCallId);
-              
-              // Wait for AI to be ready before answering and bridging
-              setTimeout(async () => {
-                // Step 1: Answer the inbound call NOW (agent is ready)
-                console.log('[Call] AI ready! Answering inbound call now...');
-                addStatus('🤖 AI ready - answering call...', 'success');
-                
-                await fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
-                  method: "POST",
-                  headers: {
-                    "Authorization": "Bearer " + telnectToken,
-                    "Content-Type": "application/json"
-                  },
-                  body: JSON.stringify({
-                    "actions": [{
-                      "action": "answer"
-                    }]
-                  })
-                });
-                
-                console.log('[Call] ✅ Call answered');
-                addStatus('✅ Call answered - caller connected', 'success');
-                
-                // Wait briefly for answer to complete
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Step 2: Bridge the two calls together
-                console.log('[Call] Bridging calls...');
-                fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
-                  method: "POST",
-                  headers: {
-                    "Authorization": "Bearer " + telnectToken,
-                    "Content-Type": "application/json"
-                  },
-                  body: JSON.stringify({
-                    "actions": [{
-                      "action": "bridge",
-                      "param": {
-                        "id": currentCallId  // Bridge with our park call
-                      }
-                    }]
-                  })
-                })
-              .then(async res => {
-                if (res && res.ok) {
-                  console.log('[Call] ✅ Calls bridged together!');
-                  addStatus('✅ Calls bridged! Audio should now be flowing...', 'success');
-                  
-                  // Now use the park call ID for recording
-                  currentCallId = currentCallId; // Keep using park call ID
-                  
-                  // Start recording
-                  startRecording(currentCallId);
-                  
-                  // CRITICAL: Wait for audio to flow through bridge, THEN initialize AI
-                  console.log('[Call] Waiting 2 seconds for bridge audio to flow...');
-                  setTimeout(() => {
-                    console.log('[Call] ⏰ Bridge should be active, initializing AI now...');
-                    if (phoneAudioStream && !sonioxSTT) {
-                      initializeElevenLabsBridge();
-                    } else {
-                      console.warn('[Call] ⚠️ Cannot initialize - phoneAudioStream:', !!phoneAudioStream, 'sonioxSTT exists:', !!sonioxSTT);
-                    }
-                  }, 2000); // Wait 2 seconds for bridge audio to flow
-                } else {
-                  const errorText = await res.text();
-                  console.error('[Call] Bridge failed:', res.status, errorText);
-                  throw new Error(`Failed to bridge calls: ${res.status} - ${errorText}`);
-                }
-              })
-              .catch(err => {
-                console.error('[Call] Error in inbound call flow:', err);
-                addStatus('❌ Failed to bridge inbound call: ' + err.message, 'error');
-              });
-              }, 1000); // Wait 1 second for park call to establish (reduced for faster response)
-              
-            } else {
-              // Outbound call mode (disabled - only use inbound webhook mode)
-              console.log('[Call] Outbound mode disabled - this should only run in inbound webhook mode');
-              addStatus('⚠️ Outbound mode not configured', 'info');
-              
-              /* Disabled outbound calling
-              fetch("/proxy/api/dial/easytelecom-v1/call", {
-                method: "POST",
-                headers: {
-                  "Authorization": "Bearer " + salesysToken,
-                  "Content-type": "application/json"
-                },
-                body: JSON.stringify({
-                  "destinationPhoneNumber": numberToCall,
-                  "callerPhoneNumber": numberToCallFrom,
-                  "easyTelecomUserCallId": currentCallId
-                })
-              })
-              .then(res => {
-                if (res.ok) {
-                  addStatus(`✓ Call initiated to ${numberToCall}`, 'success');
-                  addStatus(`⏳ Waiting for remote party to answer before starting AI agent...`, 'info');
-                  
-                  // DON'T initialize yet - wait for the call to be answered
-                  // We'll do this in the onMessage handler when we see "display" event
-                } else {
-                  addStatus(`Failed to initiate call: ${res.status}`, 'error');
-                }
-              })
-              .catch(err => {
-                addStatus(`Error initiating call: ${err.message}`, 'error');
-              });
-              */
-            }
-          }
-          
-          // Terminate ElevenLabs agent and stop recording on hangup
-          if (call.state === $.verto.enum.state.hangup || call.state === $.verto.enum.state.destroy) {
-            addStatus('📞 Call ended, stopping recording and terminating AI agent...', 'info');
-            console.log('[Call] Call ended - cleaning up resources');
-            
-            // Stop recording
-            if (currentCallId) {
-              stopRecording(currentCallId);
-              currentCallId = null; // Clear the call ID
-            }
-            
-            // Terminate Soniox STT
-            if (sonioxSTT) {
-              try {
-                console.log('[Call] Stopping Soniox STT...');
-                await sonioxSTT.stop();
-                addStatus('✓ Soniox STT stopped', 'success');
-                sonioxSTT = null;
-              } catch (err) {
-                console.error('Error stopping Soniox:', err);
-                addStatus(`⚠️ Error stopping Soniox: ${err.message}`, 'error');
-              }
-            }
-
-            // Terminate AI agent immediately
-            if (elevenLabsBridge) {
-              try {
-                console.log('[Call] Terminating AI agent...');
-                
-                // Close WebSocket immediately
-                if (elevenLabsBridge.ws) {
-                  elevenLabsBridge.ws.close();
-                  elevenLabsBridge.ws = null;
-                }
-                
-                // Stop audio processing (only if in audio mode)
-                if (elevenLabsBridge.phoneProcessor) {
-                  elevenLabsBridge.phoneProcessor.disconnect();
-                  elevenLabsBridge.phoneProcessor = null;
-                }
-                
-                // End session
-                await elevenLabsBridge.endSession();
-                addStatus('✓ AI agent terminated successfully', 'success');
-                elevenLabsBridge = null;
-              } catch (err) {
-                console.error('Error terminating AI agent:', err);
-                addStatus(`⚠️ Error terminating AI agent: ${err.message}`, 'error');
-              }
-            }
-            
-            // Reset state for next call
-            window.inboundCallProcessed = false;
-            window.elevenLabsInitialized = false;
-            phoneAudioStream = null;
-            
-            // Signal Puppeteer to close this tab (for autonomous operation)
-            if (window.inboundCallId) {
-              console.log('[Call] Signaling tab cleanup to Puppeteer...');
-              document.title = 'CALL_ENDED';
-              
-              // Give Puppeteer time to detect the title change before potential page unload
-              setTimeout(() => {
-                console.log('[Call] Cleanup signal sent, tab ready for closure');
-              }, 500);
-            }
-          }
-        },
-        onEvent: (verto, event, data) => {
-          console.debug("onEvent", event, data);
-          addStatus(`Event: ${event}`, 'info');
-        },
-        onWSLogin: () => {
-          console.debug("onWSLogin");
-          addStatus('✓ WebSocket logged in successfully', 'success');
+      // Use proxy to avoid CORS issues
+      fetch("/proxy/api/dial/easytelecom-v1/login", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + salesysToken
         }
-      });
-
-      addStatus('Attempting Verto login...', 'info');
-      verto.login();
-
-    })
-    .catch(err => {
-      addStatus(`❌ Error: ${err.message}`, 'error');
-      addStatus('This is likely a CORS issue. The API at app.salesys.se needs to allow requests from your origin.', 'error');
-      console.error(err);
-    });
-
-    // Diagnostics
-    function logAudioDiagnostics() {
-      console.log('=== AUDIO DIAGNOSTICS ===');
-      console.log('Phone stream:', phoneAudioStream);
-      console.log('Phone stream tracks:', phoneAudioStream?.getTracks());
-      console.log('Virtual audio source:', virtualAudioSource);
-      console.log('Virtual stream:', virtualAudioSource?.getMediaStream());
-      console.log('Virtual stream tracks:', virtualAudioSource?.getMediaStream().getTracks());
-      console.log('ElevenLabs bridge:', elevenLabsBridge);
-      console.log('Virtual audio queue length:', virtualAudioSource?.queueLength);
-      console.log('Virtual audio playing:', virtualAudioSource?.playing);
-      console.log('========================');
-    }
-
-    // Make diagnostics available globally
-    window.logAudioDiagnostics = logAudioDiagnostics;
-
-    // Audio bridge workers
-    let phoneCaptureProcessor = null;
-    let aiOutputCaptureNode = null;
-    let aiAudioContext = null;
-
-    // Function to initialize ElevenLabs using CUSTOM WebSocket bridge (headless)
-    async function initializeElevenLabsBridge() {
-      // Prevent multiple AI agent initializations
-      if (window.elevenLabsInitialized) {
-        console.log('[ElevenLabs] Already initialized, skipping duplicate initialization');
-        return;
-      }
-      window.elevenLabsInitialized = true;
-      
-      if (!phoneAudioStream) {
-        addStatus('⚠️ Phone audio stream not available', 'error');
-        return;
-      }
-
-      if (!elevenLabsConfig.agentId || elevenLabsConfig.agentId === 'YOUR_AGENT_ID_HERE') {
-        addStatus('⚠️ ElevenLabs agent ID not configured', 'error');
-        return;
-      }
-
-      try {
-        // ========================================
-        // NEW ARCHITECTURE: Soniox STT + ElevenLabs Text
-        // ========================================
-        
-        addStatus('🤖 Initializing NEW ARCHITECTURE: Soniox STT + ElevenLabs...', 'info');
-        console.log('=== NEW ARCHITECTURE: Phone → Soniox STT → ElevenLabs (text) → Phone ===');
-
-        // STEP 1: Initialize Soniox STT for transcription
-        console.log('[STT] ========== INITIALIZING SONIOX STT ==========');
-        console.log('[STT] phoneAudioStream available:', !!phoneAudioStream);
-        console.log('[STT] phoneAudioStream ID:', phoneAudioStream?.id);
-        console.log('[STT] phoneAudioStream active:', phoneAudioStream?.active);
-        console.log('[STT] phoneAudioStream tracks:', phoneAudioStream?.getAudioTracks().length);
-        console.log('[STT] Soniox API key configured:', !!sonioxConfig.apiKey);
-        
-        if (!phoneAudioStream) {
-          console.error('[STT] ❌ NO PHONE AUDIO STREAM! Cannot initialize Soniox');
-          addStatus('❌ No phone audio stream available', 'error');
-          throw new Error('Phone audio stream not available');
+      }).then(res => {
+        if (!res.ok) {
+          throw new Error(`Login failed: ${res.status} ${res.statusText}`);
         }
-        
-        console.log('[STT] ✅ Using REAL phoneAudioStream:', phoneAudioStream.id);
-        
-        addStatus('🎤 Starting Soniox STT with CORRECTED API...', 'info');
-        sonioxSTT = new SonioxSTT({
-          apiKey: sonioxConfig.apiKey,
-          // Add context to improve transcription accuracy
-          context: `
-            Fello support line. Customer service for mobile subscriptions and plans.
-            Common topics: abonnemang (subscription), pris (price), byte (change), 
-            telefon (phone), mobilnummer (mobile number), faktura (invoice),
-            uppgradera (upgrade), säga upp (cancel), kundtjänst (customer service).
-            Company name: Fello
-          `.trim(),
-          onTranscript: (text) => {
-            // Called when complete transcript is ready (after endpoint detection)
-            console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
-            addStatus(`👤 User said: "${text}"`, 'info');
-            
-            // Send to ElevenLabs as text message
-            if (elevenLabsBridge) {
-              console.log('[STT→AI] Sending to ElevenLabs:', text);
-              elevenLabsBridge.sendTextMessage(text);
-            } else {
-              console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
+        return res.json();
+      }).then(login => {
+        addStatus('✓ Successfully logged in to Salesys', 'success');
+        addStatus('Initializing Verto connection...', 'info');
+
+        const verto = new $.verto({
+          login: `${login.username}@${login.domain}`,
+          passwd: login.password,
+          iceServers: true,
+          socketUrl: login.url,
+          tag: "audio-stream"
+        }, {
+          onRemoteStream: stream => {
+            console.log("========== onRemoteStream FIRED ==========");
+            console.log('[Audio] Stream ID:', stream.id);
+            console.log('[Audio] Active:', stream.active);
+            console.log('[Audio] Audio tracks:', stream.getAudioTracks().length);
+            console.log('[Audio] Is inbound call:', !!window.inboundCallId);
+            console.log('[Audio] Already initialized:', { elevenlabs: !!elevenLabsBridge, soniox: !!sonioxSTT });
+
+            addStatus('📞 Incoming audio stream from remote party', 'success');
+
+            // ALWAYS set phoneAudioStream - this is the WebRTC audio we need!
+            phoneAudioStream = stream;
+            console.log('[Audio] ✅ phoneAudioStream SET:', stream.id);
+
+            // CRITICAL: Pre-create audio context and connect to stream NOW (while fresh)
+            // But don't initialize Soniox WebSocket yet - wait for bridge
+            if (window.inboundCallId && !window.preConnectedAudioContext) {
+              console.log('[Audio] 🎤 PRE-CONNECTING to audio stream (before bridge)...');
+              console.log('[Audio] Stream tracks:', stream.getAudioTracks().map(t => ({
+                id: t.id,
+                label: t.label,
+                enabled: t.enabled,
+                muted: t.muted,
+                readyState: t.readyState
+              })));
+
+              window.preConnectedAudioContext = new AudioContext({ sampleRate: 16000 });
+              console.log('[Audio] AudioContext created - State:', window.preConnectedAudioContext.state, 'Sample rate:', window.preConnectedAudioContext.sampleRate);
+
+              window.preConnectedAudioSource = window.preConnectedAudioContext.createMediaStreamSource(stream);
+              console.log('[Audio] MediaStreamSource created');
+              console.log('[Audio] ✅ Audio context pre-connected to live stream');
+              console.log('[Audio] Will initialize Soniox WebSocket after bridge...');
             }
-          },
-          onPartialTranscript: (text) => {
-            // Called for partial/interim results
-            console.log('[STT] 📝 Partial transcript:', text);
-            addStatus(`🗣️ Hearing: "${text}"`, 'info');
-          },
-          onStatusChange: (status) => {
-            console.log('[Soniox] Status:', status);
-            if (status === 'connected') {
-              addStatus('✓ Soniox STT connected', 'success');
-            } else if (status === 'error') {
-              addStatus('❌ Soniox error', 'error');
-            }
-          },
-          onError: (error) => {
-            console.error('[Soniox] Error:', error);
-            addStatus(`❌ Soniox error: ${error.message}`, 'error');
-          }
-        });
 
-        // Initialize Soniox with phone audio stream (using correct API now)
-        await sonioxSTT.initialize(
-          phoneAudioStream,
-          window.preConnectedAudioContext,
-          window.preConnectedAudioSource
-        );
-        addStatus('✅ Soniox STT active with CORRECT API endpoint', 'success');
-
-        // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
-        addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
-        elevenLabsBridge = new ElevenLabsBridge({
-          agentId: elevenLabsConfig.agentId,
-          apiKey: elevenLabsConfig.apiKey,
-          virtualAudioSource: virtualAudioSource,
-          useTextInput: true, // NEW: Enable text input mode
-          customVariables: {
-            call_id: window.inboundCallId || currentCallId || 'unknown',
-            user_number: window.inboundCallId ? 
-              (new URLSearchParams(window.location.search).get('caller') || 'unknown') : 
-              (new URLSearchParams(window.location.search).get('called') || 'unknown'),
-            caller_number: new URLSearchParams(window.location.search).get('caller') || 'unknown',
-            called_number: new URLSearchParams(window.location.search).get('called') || 'unknown'
-          },
-          onStatusChange: (status, error) => {
-            console.log('[ElevenLabs] Status:', status);
-            if (status === 'websocket_connected') {
-              addStatus('✓ ElevenLabs WebSocket connected', 'success');
-            } else if (status === 'conversation_ready') {
-              addStatus('✅ ElevenLabs ready for text messages!', 'success');
-            } else if (status === 'connected') {
-              addStatus('✓ ElevenLabs connected', 'success');
-            } else if (status === 'error') {
-              addStatus(`❌ ElevenLabs error: ${error?.message}`, 'error');
-            } else if (status === 'error_disconnect') {
-              addStatus('❌ AI agent disconnected unexpectedly - hanging up call', 'error');
-              // Hangup the call via Telnect API
-              if (currentCallId) {
-                fetch(`/proxy/telnect/api/v1/Calls/${currentCallId}`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': 'Bearer ' + telnectToken,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    actions: [{ action: 'hangup' }]
-                  })
-                }).then(() => {
-                  console.log('[Call] Hangup triggered due to AI disconnect');
-                }).catch(err => {
-                  console.error('[Call] Failed to hangup:', err);
-                });
-              }
-            } else if (status === 'disconnected') {
-              addStatus('Disconnected', 'info');
-            }
-          },
-          onAgentMessage: (message) => {
-            addStatus(`🤖 AI: ${message}`, 'info');
-          },
-          onAudioLevel: (direction, level) => {
-            updateAudioLevel(direction, level);
-          }
-        });
-
-        // Expose bridge globally for context updates API
-        window.elevenLabsBridge = elevenLabsBridge;
-        window.sonioxSTT = sonioxSTT;
-        console.log('[Bridge] Bridges exposed globally');
-
-        // Initialize ElevenLabs (no phone stream needed in text mode)
-        await elevenLabsBridge.initialize();
-        addStatus('✅ NEW ARCHITECTURE ACTIVE!', 'success');
-        console.log('[Bridge] ✅ Phone → Soniox STT → ElevenLabs (text) → Phone (audio)');
-
-      } catch (error) {
-        addStatus(`❌ Failed: ${error.message}`, 'error');
-        console.error('[Bridge] Error:', error);
-      }
-    }
-
-    // No longer needed - custom bridge handles everything
-    async function startAudioBridge() {
-      console.log('[Bridge] Audio bridge handled by ElevenLabsBridge class');
-
-      // Monitor input audio levels (phone → AI)
-      const monitorInput = () => {
-        if (!elevenLabsBridge || !elevenLabsBridge.getInputByteFrequencyData) return;
-        
-        try {
-          const inputData = elevenLabsBridge.getInputByteFrequencyData();
-          if (inputData) {
-            const average = inputData.reduce((a, b) => a + b) / inputData.length;
-            const level = Math.min(100, Math.round(average / 2.55));
-            updateAudioLevel('phone-to-agent', level);
-          }
-        } catch (e) {
-          // SDK method not ready yet
-        }
-      };
-      setInterval(monitorInput, 100);
-
-      // Monitor output audio levels and capture to route to phone
-      const monitorAndCaptureOutput = () => {
-        if (!elevenLabsBridge || !elevenLabsBridge.getOutputByteFrequencyData) return;
-        
-        try {
-          const outputData = elevenLabsBridge.getOutputByteFrequencyData();
-          if (outputData) {
-            const average = outputData.reduce((a, b) => a + b) / outputData.length;
-            const level = Math.min(100, Math.round(average / 2.55));
-            updateAudioLevel('agent-to-phone', level);
-            
-            // If AI is speaking (level > threshold), add audio to virtual source
-            if (level > 10) {
-              // Generate silence as placeholder - the SDK handles actual audio
-              // This just keeps the virtual audio stream alive
-              if (virtualAudioSource && !virtualAudioSource.playing) {
-                virtualAudioSource.addSilence(20);
-              }
-            }
-          }
-        } catch (e) {
-          // SDK method not ready yet
-        }
-      };
-      setInterval(monitorAndCaptureOutput, 100);
-
-      addStatus('✓ Audio bridge monitoring active', 'success');
-      console.log('[Bridge] Monitoring audio levels from SDK');
-      
-      // Try to route SDK output to virtual audio
-      // The SDK doesn't natively support custom output routing, so we'll need
-      // to capture the audio element it creates
-      setTimeout(() => {
-        tryCaptureSdkAudioOutput();
-      }, 1000);
-    }
-
-    function tryCaptureSdkAudioOutput() {
-      // Find any audio elements the SDK might have created
-      const audioElements = document.querySelectorAll('audio');
-      console.log('[Bridge] Searching for SDK audio elements...', audioElements.length, 'total');
-      
-      let foundSdkAudio = false;
-      
-      audioElements.forEach((audio, index) => {
-        console.log('[Bridge] Audio element #' + index + ':', {
-          id: audio.id,
-          hasSrcObject: !!audio.srcObject,
-          tagName: audio.tagName
-        });
-        
-        if (audio.srcObject && audio.id !== 'audio-stream') {
-          console.log('[Bridge] ✅ Found SDK audio element!', audio);
-          foundSdkAudio = true;
-          
-          // Capture this audio and route to virtual source
-          try {
-            console.log('[Bridge] Audio element details:', {
-              muted: audio.muted,
-              volume: audio.volume,
-              paused: audio.paused,
-              srcObject: audio.srcObject
+            console.log('[Audio] Remote party stream received:', {
+              id: stream.id,
+              active: stream.active,
+              audioTracks: stream.getAudioTracks().length
             });
-            
-            // Try to capture from the MediaStream directly instead of the audio element
-            if (audio.srcObject && audio.srcObject.getAudioTracks) {
-              console.log('[Bridge] Using MediaStream capture (better approach)');
-              const stream = audio.srcObject;
-              const captureContext = new AudioContext({ sampleRate: 48000 });
-              
-              // Resume context
-              captureContext.resume().then(() => {
-                console.log('[Bridge] Audio context state:', captureContext.state);
-              });
-              
-              console.log('[Bridge] Stream details:', {
-                id: stream.id,
-                active: stream.active,
-                tracks: stream.getAudioTracks().length,
-                trackLabel: stream.getAudioTracks()[0]?.label
-              });
-              
-              const sdkSource = captureContext.createMediaStreamSource(stream);
-              console.log('[Bridge] Created MediaStreamSource from SDK output');
-              
-              // Also create an analyser to verify we're getting audio
-              const analyser = captureContext.createAnalyser();
-              sdkSource.connect(analyser);
-              
-              const processor = captureContext.createScriptProcessor(4096, 1, 1);
-              
-              // Debug: Check if analyser shows audio
-              const testData = new Uint8Array(analyser.frequencyBinCount);
-              setInterval(() => {
-                analyser.getByteFrequencyData(testData);
-                const avg = testData.reduce((a, b) => a + b) / testData.length;
-                if (avg > 0) {
-                  console.log('[Bridge] ✅ ANALYSER DETECTING AUDIO! Level:', avg);
-                }
-              }, 500);
-            
-            let chunksSent = 0;
-            let processorCallCount = 0;
-            
-            processor.onaudioprocess = (e) => {
-              processorCallCount++;
-              
-              if (processorCallCount === 1) {
-                console.log('[Bridge] ✅ ScriptProcessor ACTIVE - audio routing started!');
-              }
-              
-              const audioData = e.inputBuffer.getChannelData(0);
-              
-              // Check if there's actual audio
-              const hasAudio = audioData.some(s => Math.abs(s) > 0.01);
-              
-              if (hasAudio) {
-                chunksSent++;
-                if (chunksSent === 1 || chunksSent % 10 === 0) {
-                  console.log('[Bridge] 🔊 Routing AI audio chunk #' + chunksSent + ' to phone!');
-                }
-                
-                // Convert to PCM16 and send to virtual audio
-                const pcm16 = new Int16Array(audioData.length);
-                for (let i = 0; i < audioData.length; i++) {
-                  const s = Math.max(-1, Math.min(1, audioData[i]));
-                  pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                
-                virtualAudioSource.addAudioData(pcm16);
-              } else if (processorCallCount % 50 === 0) {
-                console.log('[Bridge] Processor running but no audio detected yet...');
-              }
-            };
-            
-              console.log('[Bridge] Connecting audio nodes...');
-              // Connect: Source → Analyser → Processor → Destination
-              analyser.connect(processor);
-              processor.connect(captureContext.destination);
-              
-              console.log('[Bridge] Audio pipeline: MediaStream → Analyser → Processor → Destination');
-              console.log('[Bridge] Audio nodes connected successfully!');
-              
-              addStatus('✅ SDK audio captured → routing to phone!', 'success');
-              console.log('[Bridge] 🎧 AI audio pipeline: MediaStream → Virtual Audio → Phone');
-            } else {
-              console.error('[Bridge] No srcObject.getAudioTracks available');
-            }
-          } catch (err) {
-            console.error('[Bridge] ❌ Failed to capture SDK audio:', err);
-            addStatus(`⚠️ Audio capture error: ${err.message}`, 'error');
-          }
-        }
-      });
-      
-      if (!foundSdkAudio) {
-        console.warn('[Bridge] No SDK audio element found yet, will retry...');
-        setTimeout(tryCaptureSdkAudioOutput, 2000); // Retry in 2 seconds
-      }
-    }
 
-    function stopAudioBridge() {
-      console.log('[Bridge] Stopping audio bridge');
-      // Cleanup handled by SDK
-    }
+            // Connect audio element but MUTE it (we don't want to play it in browser)
+            // The audio goes to the AI bridge instead
+            const audioElement = document.getElementById('audio-stream');
+            if (audioElement) {
+              audioElement.srcObject = stream;
+              audioElement.muted = true; // MUTE - audio goes to AI, not speakers!
+              audioElement.play().catch(e => console.log('[Audio] Autoplay prevented:', e));
+              console.log('[Audio] ✅ Phone audio muted in browser (routed to AI instead)');
+              addStatus('🔇 Phone audio muted (routing to AI)', 'success');
+            }
+
+            // Monitor incoming audio levels
+            const monitorContext = new AudioContext();
+            const monitorSource = monitorContext.createMediaStreamSource(stream);
+            const monitorAnalyser = monitorContext.createAnalyser();
+            monitorSource.connect(monitorAnalyser);
+
+            const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
+            setInterval(() => {
+              monitorAnalyser.getByteFrequencyData(monitorData);
+              const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
+              if (avg > 5) {
+                console.log('[Audio] Remote party speaking - level:', Math.round(avg));
+              }
+            }, 2000);
+
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+              const settings = audioTrack.getSettings();
+              const capabilities = audioTrack.getCapabilities ? audioTrack.getCapabilities() : {};
+              const constraints = audioTrack.getConstraints ? audioTrack.getConstraints() : {};
+
+              console.log('Audio track:', audioTrack);
+              console.log('Audio settings:', JSON.stringify(settings, null, 2));
+              console.log('Audio capabilities:', JSON.stringify(capabilities, null, 2));
+              console.log('Audio constraints:', JSON.stringify(constraints, null, 2));
+              console.table(settings);
+              console.table(capabilities);
+
+              // Try to get sample rate from different sources
+              const sampleRate = settings.sampleRate ||
+                (capabilities.sampleRate && capabilities.sampleRate.max) ||
+                '48000 (default)';
+              const channels = settings.channelCount || 1;
+
+              addStatus(`🎵 Audio: ${sampleRate}Hz, ${channels} channel(s)`, 'info');
+
+              // Also try to get info from AudioContext
+              const audioElement = document.getElementById('audio-stream');
+              if (audioElement && audioElement.srcObject) {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                addStatus(`🎵 AudioContext sample rate: ${audioCtx.sampleRate}Hz`, 'info');
+              }
+            }
+          },
+          onWSClose: () => {
+            console.debug("onWSClose");
+            addStatus('WebSocket connection closed', 'error');
+          },
+          onMessage: (verto, call, type) => {
+            console.debug("onMessage", type);
+            addStatus(`Message received: ${type.name}`, 'info');
+
+            if (type.name === "clientReady") {
+              // Check if this is an inbound call (webhook/headless mode)
+              if (window.inboundCallId) {
+                addStatus('✅ Client ready - answering inbound call...', 'info');
+                console.log('[Call] Inbound mode - answering call:', window.inboundCallId);
+
+                // Answer the inbound call directly (no need to call "park")
+                // The call is already active, we just need to connect to it
+                verto.newCall({
+                  caller_id_name: null,
+                  caller_id_number: null,
+                  destination_number: "park", // Still need this to establish WebRTC
+                  useStereo: false,
+                  useVideo: false
+                });
+              } else {
+                // Outbound mode - create call to park as usual
+                addStatus('Client ready, creating call to "park"...', 'info');
+                verto.newCall({
+                  caller_id_name: null,
+                  caller_id_number: null,
+                  destination_number: "park",
+                  useStereo: false,
+                  useVideo: false
+                });
+              }
+            }
+
+            // When we get "display" event, it typically means call progress/answered
+            // For inbound calls, we handle initialization in onRemoteStream instead
+            if (type.name === "display" && !window.inboundCallId && !elevenLabsBridge && phoneAudioStream) {
+              addStatus('📞 Call appears to be answered (outbound mode)', 'success');
+
+              // Start recording immediately when call is answered
+              if (currentCallId) {
+                startRecording(currentCallId);
+              }
+
+              // Note: For inbound calls, AI is initialized in onRemoteStream
+            }
+          },
+          onDialogState: async (call) => {
+            console.log("onDialogState", call);
+
+            // Format call state nicely
+            const stateInfo = {
+              state: call.state,
+              direction: call.direction,
+              callId: call.callID
+            };
+
+            addStatus(`Call state: ${JSON.stringify(stateInfo, null, 2)}`, 'info');
+
+            if (call.state === $.verto.enum.state.active) {
+              // Store the call ID for later use (recording, etc.)
+              currentCallId = call.params.variables.verto_svar_api_callid;
+              console.log('[Call] Stored call ID:', currentCallId);
+
+              // Check if this is an inbound call (headless webhook mode)
+              if (window.inboundCallId && !window.inboundCallProcessed) {
+                window.inboundCallProcessed = true; // Prevent duplicate processing
+
+                addStatus('✅ Park call active! Now answering and bridging inbound call...', 'success');
+                console.log('[Call] Inbound mode - Park call ID:', currentCallId);
+                console.log('[Call] Inbound call to answer:', window.inboundCallId);
+
+                // Wait for AI to be ready before answering and bridging
+                setTimeout(async () => {
+                  // Step 1: Answer the inbound call NOW (agent is ready)
+                  console.log('[Call] AI ready! Answering inbound call now...');
+                  addStatus('🤖 AI ready - answering call...', 'success');
+
+                  await fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
+                    method: "POST",
+                    headers: {
+                      "Authorization": "Bearer " + telnectToken,
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      "actions": [{
+                        "action": "answer"
+                      }]
+                    })
+                  });
+
+                  console.log('[Call] ✅ Call answered');
+                  addStatus('✅ Call answered - caller connected', 'success');
+
+                  // Wait briefly for answer to complete
+                  await new Promise(resolve => setTimeout(resolve, 500));
+
+                  // Step 2: Bridge the two calls together
+                  console.log('[Call] Bridging calls...');
+                  fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
+                    method: "POST",
+                    headers: {
+                      "Authorization": "Bearer " + telnectToken,
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      "actions": [{
+                        "action": "bridge",
+                        "param": {
+                          "id": currentCallId  // Bridge with our park call
+                        }
+                      }]
+                    })
+                  })
+                    .then(async res => {
+                      if (res && res.ok) {
+                        console.log('[Call] ✅ Calls bridged together!');
+                        addStatus('✅ Calls bridged! Audio should now be flowing...', 'success');
+
+                        // Now use the park call ID for recording
+                        currentCallId = currentCallId; // Keep using park call ID
+
+                        // Start recording
+                        startRecording(currentCallId);
+
+                        // CRITICAL: Wait for audio to flow through bridge, THEN initialize AI
+                        console.log('[Call] Waiting 2 seconds for bridge audio to flow...');
+                        setTimeout(() => {
+                          console.log('[Call] ⏰ Bridge should be active, initializing AI now...');
+                          if (phoneAudioStream && !sonioxSTT) {
+                            initializeElevenLabsBridge();
+                          } else {
+                            console.warn('[Call] ⚠️ Cannot initialize - phoneAudioStream:', !!phoneAudioStream, 'sonioxSTT exists:', !!sonioxSTT);
+                          }
+                        }, 2000); // Wait 2 seconds for bridge audio to flow
+                      } else {
+                        const errorText = await res.text();
+                        console.error('[Call] Bridge failed:', res.status, errorText);
+                        throw new Error(`Failed to bridge calls: ${res.status} - ${errorText}`);
+                      }
+                    })
+                    .catch(err => {
+                      console.error('[Call] Error in inbound call flow:', err);
+                      addStatus('❌ Failed to bridge inbound call: ' + err.message, 'error');
+                    });
+                }, 1000); // Wait 1 second for park call to establish (reduced for faster response)
+
+              } else {
+                // Outbound call mode (disabled - only use inbound webhook mode)
+                console.log('[Call] Outbound mode disabled - this should only run in inbound webhook mode');
+                addStatus('⚠️ Outbound mode not configured', 'info');
+
+                /* Disabled outbound calling
+                fetch("/proxy/api/dial/easytelecom-v1/call", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": "Bearer " + salesysToken,
+                    "Content-type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    "destinationPhoneNumber": numberToCall,
+                    "callerPhoneNumber": numberToCallFrom,
+                    "easyTelecomUserCallId": currentCallId
+                  })
+                })
+                .then(res => {
+                  if (res.ok) {
+                    addStatus(`✓ Call initiated to ${numberToCall}`, 'success');
+                    addStatus(`⏳ Waiting for remote party to answer before starting AI agent...`, 'info');
+                    
+                    // DON'T initialize yet - wait for the call to be answered
+                    // We'll do this in the onMessage handler when we see "display" event
+                  } else {
+                    addStatus(`Failed to initiate call: ${res.status}`, 'error');
+                  }
+                })
+                .catch(err => {
+                  addStatus(`Error initiating call: ${err.message}`, 'error');
+                });
+                */
+              }
+            }
+
+            // Terminate ElevenLabs agent and stop recording on hangup
+            if (call.state === $.verto.enum.state.hangup || call.state === $.verto.enum.state.destroy) {
+              addStatus('📞 Call ended, stopping recording and terminating AI agent...', 'info');
+              console.log('[Call] Call ended - cleaning up resources');
+
+              // Stop recording
+              if (currentCallId) {
+                stopRecording(currentCallId);
+                currentCallId = null; // Clear the call ID
+              }
+
+              // Terminate Soniox STT
+              if (sonioxSTT) {
+                try {
+                  console.log('[Call] Stopping Soniox STT...');
+                  await sonioxSTT.stop();
+                  addStatus('✓ Soniox STT stopped', 'success');
+                  sonioxSTT = null;
+                } catch (err) {
+                  console.error('Error stopping Soniox:', err);
+                  addStatus(`⚠️ Error stopping Soniox: ${err.message}`, 'error');
+                }
+              }
+
+              // Terminate AI agent immediately
+              if (elevenLabsBridge) {
+                try {
+                  console.log('[Call] Terminating AI agent...');
+
+                  // Close WebSocket immediately
+                  if (elevenLabsBridge.ws) {
+                    elevenLabsBridge.ws.close();
+                    elevenLabsBridge.ws = null;
+                  }
+
+                  // Stop audio processing (only if in audio mode)
+                  if (elevenLabsBridge.phoneProcessor) {
+                    elevenLabsBridge.phoneProcessor.disconnect();
+                    elevenLabsBridge.phoneProcessor = null;
+                  }
+
+                  // End session
+                  await elevenLabsBridge.endSession();
+                  addStatus('✓ AI agent terminated successfully', 'success');
+                  elevenLabsBridge = null;
+                } catch (err) {
+                  console.error('Error terminating AI agent:', err);
+                  addStatus(`⚠️ Error terminating AI agent: ${err.message}`, 'error');
+                }
+              }
+
+              // Reset state for next call
+              window.inboundCallProcessed = false;
+              window.elevenLabsInitialized = false;
+              phoneAudioStream = null;
+
+              // Signal Puppeteer to close this tab (for autonomous operation)
+              if (window.inboundCallId) {
+                console.log('[Call] Signaling tab cleanup to Puppeteer...');
+                document.title = 'CALL_ENDED';
+
+                // Give Puppeteer time to detect the title change before potential page unload
+                setTimeout(() => {
+                  console.log('[Call] Cleanup signal sent, tab ready for closure');
+                }, 500);
+              }
+            }
+          },
+          onEvent: (verto, event, data) => {
+            console.debug("onEvent", event, data);
+            addStatus(`Event: ${event}`, 'info');
+          },
+          onWSLogin: () => {
+            console.debug("onWSLogin");
+            addStatus('✓ WebSocket logged in successfully', 'success');
+          }
+        });
+
+        addStatus('Attempting Verto login...', 'info');
+        verto.login();
+
+      })
+        .catch(err => {
+          addStatus(`❌ Error: ${err.message}`, 'error');
+          addStatus('This is likely a CORS issue. The API at app.salesys.se needs to allow requests from your origin.', 'error');
+          console.error(err);
+        });
+
+      // Diagnostics
+      function logAudioDiagnostics() {
+        console.log('=== AUDIO DIAGNOSTICS ===');
+        console.log('Phone stream:', phoneAudioStream);
+        console.log('Phone stream tracks:', phoneAudioStream?.getTracks());
+        console.log('Virtual audio source:', virtualAudioSource);
+        console.log('Virtual stream:', virtualAudioSource?.getMediaStream());
+        console.log('Virtual stream tracks:', virtualAudioSource?.getMediaStream().getTracks());
+        console.log('ElevenLabs bridge:', elevenLabsBridge);
+        console.log('Virtual audio queue length:', virtualAudioSource?.queueLength);
+        console.log('Virtual audio playing:', virtualAudioSource?.playing);
+        console.log('========================');
+      }
+
+      // Make diagnostics available globally
+      window.logAudioDiagnostics = logAudioDiagnostics;
+
+      // Audio bridge workers
+      let phoneCaptureProcessor = null;
+      let aiOutputCaptureNode = null;
+      let aiAudioContext = null;
+
+      // Function to initialize ElevenLabs using CUSTOM WebSocket bridge (headless)
+      async function initializeElevenLabsBridge() {
+        // Prevent multiple AI agent initializations
+        if (window.elevenLabsInitialized) {
+          console.log('[ElevenLabs] Already initialized, skipping duplicate initialization');
+          return;
+        }
+        window.elevenLabsInitialized = true;
+
+        if (!phoneAudioStream) {
+          addStatus('⚠️ Phone audio stream not available', 'error');
+          return;
+        }
+
+        if (!elevenLabsConfig.agentId || elevenLabsConfig.agentId === 'YOUR_AGENT_ID_HERE') {
+          addStatus('⚠️ ElevenLabs agent ID not configured', 'error');
+          return;
+        }
+
+        try {
+          // ========================================
+          // NEW ARCHITECTURE: Soniox STT + ElevenLabs Text
+          // ========================================
+
+          addStatus('🤖 Initializing NEW ARCHITECTURE: Soniox STT + ElevenLabs...', 'info');
+          console.log('=== NEW ARCHITECTURE: Phone → Soniox STT → ElevenLabs (text) → Phone ===');
+
+          // STEP 1: Initialize Soniox STT for transcription
+          console.log('[STT] ========== INITIALIZING SONIOX STT ==========');
+          console.log('[STT] phoneAudioStream available:', !!phoneAudioStream);
+          console.log('[STT] phoneAudioStream ID:', phoneAudioStream?.id);
+          console.log('[STT] phoneAudioStream active:', phoneAudioStream?.active);
+          console.log('[STT] phoneAudioStream tracks:', phoneAudioStream?.getAudioTracks().length);
+          console.log('[STT] Soniox API key configured:', !!sonioxConfig.apiKey);
+
+          if (!phoneAudioStream) {
+            console.error('[STT] ❌ NO PHONE AUDIO STREAM! Cannot initialize Soniox');
+            addStatus('❌ No phone audio stream available', 'error');
+            throw new Error('Phone audio stream not available');
+          }
+
+          console.log('[STT] ✅ Using REAL phoneAudioStream:', phoneAudioStream.id);
+
+          addStatus('🎤 Starting Soniox STT with CORRECTED API...', 'info');
+          sonioxSTT = new SonioxSTT({
+            apiKey: sonioxConfig.apiKey,
+            // Add context to improve transcription accuracy
+            context: `
+            Konversationen är ett inkommande kundservicesamtal till Fello, ett mobiloperatörsbolag som erbjuder mobilabonnemang och relaterade tjänster. Kunden ringer in till Fellos kundservice och pratar med Fellippa, en digital assistent. Samtalet kan handla om att köpa nya abonnemang, fakturafrågor, teknisk support, vidarekoppling till mänsklig support via BankID-identifiering, eller problem med surf och roaming. Kunden kan behöva ange sitt personnummer för identifiering. Vanliga abonnemangsstorlekar är fem gigabyte, tio gigabyte, tjugo gigabyte, fyrtio gigabyte och hundra gigabyte. Priser inkluderar kampanjpris på tjugofem kronor i fyra månader, samt ordinarie priser som hundratjugo kronor, etthundraåttio kronor, tvåhundratretti kronor, tvåhundranittio kronor och trehundrasjuttio kronor per månad.
+Fello, Fellippa, Felloservice, Telia, Telenor, Tre, Hallon, Comviq, Vimla, Halebop, Telmore, Tele2, Lebara, Lycamobile, Telianet.
+abonnemang, mobilabonnemang, telefonabonnemang, mobilt bredband, gigabyte, gig, GB, surf, surfa, surfmängd, surfpott, månadssurf, extrasurf, dataroaming, roaming, femG, 5G, fyraG, 4G, treG, 3G, simkort, eSIM, personnummer, BankID, Bank-ID, Bank-IDE, legitimera, identifiera, identifiering, mobilhjälpen, knappval, knapptoner, stjärntecken, stjärna, fyrkant, fyrkanten, människa, handläggare, nummerflytt, nummerportering, kortbetalning, autogiro, efaktura, faktura, månadsfaktura, påminnelse, påminnelsefaktura, förfallodag, månadsavgift, kampanjpris, bindningstid, uppsägning, ångerrätt, driftstörning, täckning, mobiltäckning, nättäckning, mobilnät, nätverksoperatör, utomlands, utlandet, utlandssamtal, utlandstrafik, teknisk support, kundservice, kundtjänst, felsökning,
+nittonhundra, nittonhundraett, nittonhundratvå, nittonhundratre, nittonhundrafyra, nittonhundrafem, nittonhundrasex, nittonhundrasju, nittonhundraåtta, nittonhundranijo, nittonhundratió, nittonhundraelva, nittonhundratolv, nittonhundratretton, nittonhundrafjorton, nittonhundrafemton, nittonhundrasexton, nittonhundrasjutton, nittonhundraarton, nittonhundranitton, nittonhundratjugo, nittonhundratjugoett, nittonhundratjugotvå, nittonhundratjugotre, nittonhundratjugofyra, nittonhundratjugofem, nittonhundratjugosex, nittonhundratjugosju, nittonhundratjugoåtta, nittonhundratjugonijo, nittonhundratretti, nittonhundratrettiett, nittonhundratrettitvå, nittonhundratrettitre, nittonhundratrettifyra, nittonhundratrettifem, nittonhundratrettisex, nittonhundratrettisju, nittonhundratrettiåtta, nittonhundratrettinijo, nittonhundraförti, nittonhundraförtiett, nittonhundraförtitvå, nittonhundraförtitre, nittonhundraförtifyra, nittonhundraförtifem, nittonhundraförtisex, nittonhundraförtisju, nittonhundraförtiåtta, nittonhundraförtinijo, nittonhundrafemti, nittonhundrafemtiett, nittonhundrafemtitvå, nittonhundrafemtitre, nittonhundrafemtifyra, nittonhundrafemtifem, nittonhundrafemtisex, nittonhundrafemtisju, nittonhundrafemtiåtta, nittonhundrafemtinijo, nittonhundrasexti, nittonhundrasextiett, nittonhundrasextitvå, nittonhundrasextitre, nittonhundrasextifyra, nittonhundrasextifem, nittonhundrasextisex, nittonhundrasextisju, nittonhundrasextiåtta, nittonhundrasextinijo, nittonhundrasjutti, nittonhundrasjuttiett, nittonhundrasjuttitvå, nittonhundrasjuttitre, nittonhundrasjuttifyra, nittonhundrasjuttifem, nittonhundrasjuttisex, nittonhundrasjuttisju, nittonhundrasjuttiåtta, nittonhundrasjuttinijo, nittonhundraåtti, nittonhundraåttiett, nittonhundraåttitvå, nittonhundraåttitre, nittonhundraåttifyra, nittonhundraåttifem, nittonhundraåttisex, nittonhundraåttisju, nittonhundraåttiåtta, nittonhundraåttinijo, nittonhundranitti, nittonhundranittiett, nittonhundranittitvå, nittonhundranittitre, nittonhundranittifyra, nittonhundranittifem, nittonhundranittisex, nittonhundranittisju, nittonhundranittiåtta, nittonhundranittinijo,
+tjugohundra, tjugohundraett, tjugohundratvå, tjugohundratre, tjugohundrafyra, tjugohundrafem, tjugohundrasex, tjugohundrasju, tjugohundraåtta, tjugohundranijo, tjugohundratió, tjugohundraelva, tjugohundratolv, tjugohundratretton, tjugohundrafjorton, tjugohundrafemton, tjugohundrasexton, tjugohundrasjutton, tjugohundraarton, tjugohundranitton, tjugohundratjugo, tjugohundratjugoett, tjugohundratjugotvå, tjugohundratjugotre, tjugohundratjugofyra, tjugohundratjugofem,
+nittinijo, nittio, nittiett, nittitvå, nittitre, nittifyra, nittifem, nittisex, nittisju, nittiåtta, åttinijo, åttio, åttiett, åttitvå, åttitre, åttifyra, åttifem, åttisex, åttisju, åttiåtta, sjuttinijo, sjuttio, sjuttiett, sjuttitvå, sjuttitre, sjuttifyra, sjuttifem, sjuttisex, sjuttisju, sjuttiåtta, sextinijo, sextio, sextiett, sextitvå, sextitre, sextifyra, sextifem, sextisex, sextisju, sextiåtta, femtinijo, femtio, femtiett, femtitvå, femtitre, femtifyra, femtifem, femtisex, femtisju, femtiåtta, förtinijo, förtio, förtiett, förtitvå, förtitre, förtifyra, förtifem, förtisex, förtisju, förtiåtta, trettinijo, trettio, trettiett, trettitvå, trettitre, trettifyra, trettifem, trettisex, trettisju, trettiåtta, tjugonijo, tjugo, tjugoett, tjugotvå, tjugotre, tjugofyra, tjugofem, tjugosex, tjugosju, tjugoåtta, nitton, arton, sjutton, sexton, femton, fjorton, tretton, tolv, elva, tió, nijo, åtta, sju, sex, fem, fyra, tre, två, ett,
+nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, nollåtta, nollnijo
+          `.trim(),
+            onTranscript: (text) => {
+              // Called when complete transcript is ready (after endpoint detection)
+              console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
+              addStatus(`👤 User said: "${text}"`, 'info');
+
+              // Send to ElevenLabs as text message
+              if (elevenLabsBridge) {
+                console.log('[STT→AI] Sending to ElevenLabs:', text);
+                elevenLabsBridge.sendTextMessage(text);
+              } else {
+                console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
+              }
+            },
+            onPartialTranscript: (text) => {
+              // Called for partial/interim results
+              console.log('[STT] 📝 Partial transcript:', text);
+              addStatus(`🗣️ Hearing: "${text}"`, 'info');
+            },
+            onStatusChange: (status) => {
+              console.log('[Soniox] Status:', status);
+              if (status === 'connected') {
+                addStatus('✓ Soniox STT connected', 'success');
+              } else if (status === 'error') {
+                addStatus('❌ Soniox error', 'error');
+              }
+            },
+            onError: (error) => {
+              console.error('[Soniox] Error:', error);
+              addStatus(`❌ Soniox error: ${error.message}`, 'error');
+            }
+          });
+
+          // Initialize Soniox with phone audio stream (using correct API now)
+          await sonioxSTT.initialize(
+            phoneAudioStream,
+            window.preConnectedAudioContext,
+            window.preConnectedAudioSource
+          );
+          addStatus('✅ Soniox STT active with CORRECT API endpoint', 'success');
+
+          // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
+          addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
+          elevenLabsBridge = new ElevenLabsBridge({
+            agentId: elevenLabsConfig.agentId,
+            apiKey: elevenLabsConfig.apiKey,
+            virtualAudioSource: virtualAudioSource,
+            useTextInput: true, // NEW: Enable text input mode
+            customVariables: {
+              call_id: window.inboundCallId || currentCallId || 'unknown',
+              user_number: window.inboundCallId ?
+                (new URLSearchParams(window.location.search).get('caller') || 'unknown') :
+                (new URLSearchParams(window.location.search).get('called') || 'unknown'),
+              caller_number: new URLSearchParams(window.location.search).get('caller') || 'unknown',
+              called_number: new URLSearchParams(window.location.search).get('called') || 'unknown'
+            },
+            onStatusChange: (status, error) => {
+              console.log('[ElevenLabs] Status:', status);
+              if (status === 'websocket_connected') {
+                addStatus('✓ ElevenLabs WebSocket connected', 'success');
+              } else if (status === 'conversation_ready') {
+                addStatus('✅ ElevenLabs ready for text messages!', 'success');
+              } else if (status === 'connected') {
+                addStatus('✓ ElevenLabs connected', 'success');
+              } else if (status === 'error') {
+                addStatus(`❌ ElevenLabs error: ${error?.message}`, 'error');
+              } else if (status === 'error_disconnect') {
+                addStatus('❌ AI agent disconnected unexpectedly - hanging up call', 'error');
+                // Hangup the call via Telnect API
+                if (currentCallId) {
+                  fetch(`/proxy/telnect/api/v1/Calls/${currentCallId}`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': 'Bearer ' + telnectToken,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      actions: [{ action: 'hangup' }]
+                    })
+                  }).then(() => {
+                    console.log('[Call] Hangup triggered due to AI disconnect');
+                  }).catch(err => {
+                    console.error('[Call] Failed to hangup:', err);
+                  });
+                }
+              } else if (status === 'disconnected') {
+                addStatus('Disconnected', 'info');
+              }
+            },
+            onAgentMessage: (message) => {
+              addStatus(`🤖 AI: ${message}`, 'info');
+            },
+            onAudioLevel: (direction, level) => {
+              updateAudioLevel(direction, level);
+            }
+          });
+
+          // Expose bridge globally for context updates API
+          window.elevenLabsBridge = elevenLabsBridge;
+          window.sonioxSTT = sonioxSTT;
+          console.log('[Bridge] Bridges exposed globally');
+
+          // Initialize ElevenLabs (no phone stream needed in text mode)
+          await elevenLabsBridge.initialize();
+          addStatus('✅ NEW ARCHITECTURE ACTIVE!', 'success');
+          console.log('[Bridge] ✅ Phone → Soniox STT → ElevenLabs (text) → Phone (audio)');
+
+        } catch (error) {
+          addStatus(`❌ Failed: ${error.message}`, 'error');
+          console.error('[Bridge] Error:', error);
+        }
+      }
+
+      // No longer needed - custom bridge handles everything
+      async function startAudioBridge() {
+        console.log('[Bridge] Audio bridge handled by ElevenLabsBridge class');
+
+        // Monitor input audio levels (phone → AI)
+        const monitorInput = () => {
+          if (!elevenLabsBridge || !elevenLabsBridge.getInputByteFrequencyData) return;
+
+          try {
+            const inputData = elevenLabsBridge.getInputByteFrequencyData();
+            if (inputData) {
+              const average = inputData.reduce((a, b) => a + b) / inputData.length;
+              const level = Math.min(100, Math.round(average / 2.55));
+              updateAudioLevel('phone-to-agent', level);
+            }
+          } catch (e) {
+            // SDK method not ready yet
+          }
+        };
+        setInterval(monitorInput, 100);
+
+        // Monitor output audio levels and capture to route to phone
+        const monitorAndCaptureOutput = () => {
+          if (!elevenLabsBridge || !elevenLabsBridge.getOutputByteFrequencyData) return;
+
+          try {
+            const outputData = elevenLabsBridge.getOutputByteFrequencyData();
+            if (outputData) {
+              const average = outputData.reduce((a, b) => a + b) / outputData.length;
+              const level = Math.min(100, Math.round(average / 2.55));
+              updateAudioLevel('agent-to-phone', level);
+
+              // If AI is speaking (level > threshold), add audio to virtual source
+              if (level > 10) {
+                // Generate silence as placeholder - the SDK handles actual audio
+                // This just keeps the virtual audio stream alive
+                if (virtualAudioSource && !virtualAudioSource.playing) {
+                  virtualAudioSource.addSilence(20);
+                }
+              }
+            }
+          } catch (e) {
+            // SDK method not ready yet
+          }
+        };
+        setInterval(monitorAndCaptureOutput, 100);
+
+        addStatus('✓ Audio bridge monitoring active', 'success');
+        console.log('[Bridge] Monitoring audio levels from SDK');
+
+        // Try to route SDK output to virtual audio
+        // The SDK doesn't natively support custom output routing, so we'll need
+        // to capture the audio element it creates
+        setTimeout(() => {
+          tryCaptureSdkAudioOutput();
+        }, 1000);
+      }
+
+      function tryCaptureSdkAudioOutput() {
+        // Find any audio elements the SDK might have created
+        const audioElements = document.querySelectorAll('audio');
+        console.log('[Bridge] Searching for SDK audio elements...', audioElements.length, 'total');
+
+        let foundSdkAudio = false;
+
+        audioElements.forEach((audio, index) => {
+          console.log('[Bridge] Audio element #' + index + ':', {
+            id: audio.id,
+            hasSrcObject: !!audio.srcObject,
+            tagName: audio.tagName
+          });
+
+          if (audio.srcObject && audio.id !== 'audio-stream') {
+            console.log('[Bridge] ✅ Found SDK audio element!', audio);
+            foundSdkAudio = true;
+
+            // Capture this audio and route to virtual source
+            try {
+              console.log('[Bridge] Audio element details:', {
+                muted: audio.muted,
+                volume: audio.volume,
+                paused: audio.paused,
+                srcObject: audio.srcObject
+              });
+
+              // Try to capture from the MediaStream directly instead of the audio element
+              if (audio.srcObject && audio.srcObject.getAudioTracks) {
+                console.log('[Bridge] Using MediaStream capture (better approach)');
+                const stream = audio.srcObject;
+                const captureContext = new AudioContext({ sampleRate: 48000 });
+
+                // Resume context
+                captureContext.resume().then(() => {
+                  console.log('[Bridge] Audio context state:', captureContext.state);
+                });
+
+                console.log('[Bridge] Stream details:', {
+                  id: stream.id,
+                  active: stream.active,
+                  tracks: stream.getAudioTracks().length,
+                  trackLabel: stream.getAudioTracks()[0]?.label
+                });
+
+                const sdkSource = captureContext.createMediaStreamSource(stream);
+                console.log('[Bridge] Created MediaStreamSource from SDK output');
+
+                // Also create an analyser to verify we're getting audio
+                const analyser = captureContext.createAnalyser();
+                sdkSource.connect(analyser);
+
+                const processor = captureContext.createScriptProcessor(4096, 1, 1);
+
+                // Debug: Check if analyser shows audio
+                const testData = new Uint8Array(analyser.frequencyBinCount);
+                setInterval(() => {
+                  analyser.getByteFrequencyData(testData);
+                  const avg = testData.reduce((a, b) => a + b) / testData.length;
+                  if (avg > 0) {
+                    console.log('[Bridge] ✅ ANALYSER DETECTING AUDIO! Level:', avg);
+                  }
+                }, 500);
+
+                let chunksSent = 0;
+                let processorCallCount = 0;
+
+                processor.onaudioprocess = (e) => {
+                  processorCallCount++;
+
+                  if (processorCallCount === 1) {
+                    console.log('[Bridge] ✅ ScriptProcessor ACTIVE - audio routing started!');
+                  }
+
+                  const audioData = e.inputBuffer.getChannelData(0);
+
+                  // Check if there's actual audio
+                  const hasAudio = audioData.some(s => Math.abs(s) > 0.01);
+
+                  if (hasAudio) {
+                    chunksSent++;
+                    if (chunksSent === 1 || chunksSent % 10 === 0) {
+                      console.log('[Bridge] 🔊 Routing AI audio chunk #' + chunksSent + ' to phone!');
+                    }
+
+                    // Convert to PCM16 and send to virtual audio
+                    const pcm16 = new Int16Array(audioData.length);
+                    for (let i = 0; i < audioData.length; i++) {
+                      const s = Math.max(-1, Math.min(1, audioData[i]));
+                      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+
+                    virtualAudioSource.addAudioData(pcm16);
+                  } else if (processorCallCount % 50 === 0) {
+                    console.log('[Bridge] Processor running but no audio detected yet...');
+                  }
+                };
+
+                console.log('[Bridge] Connecting audio nodes...');
+                // Connect: Source → Analyser → Processor → Destination
+                analyser.connect(processor);
+                processor.connect(captureContext.destination);
+
+                console.log('[Bridge] Audio pipeline: MediaStream → Analyser → Processor → Destination');
+                console.log('[Bridge] Audio nodes connected successfully!');
+
+                addStatus('✅ SDK audio captured → routing to phone!', 'success');
+                console.log('[Bridge] 🎧 AI audio pipeline: MediaStream → Virtual Audio → Phone');
+              } else {
+                console.error('[Bridge] No srcObject.getAudioTracks available');
+              }
+            } catch (err) {
+              console.error('[Bridge] ❌ Failed to capture SDK audio:', err);
+              addStatus(`⚠️ Audio capture error: ${err.message}`, 'error');
+            }
+          }
+        });
+
+        if (!foundSdkAudio) {
+          console.warn('[Bridge] No SDK audio element found yet, will retry...');
+          setTimeout(tryCaptureSdkAudioOutput, 2000); // Retry in 2 seconds
+        }
+      }
+
+      function stopAudioBridge() {
+        console.log('[Bridge] Stopping audio bridge');
+        // Cleanup handled by SDK
+      }
 
     } // End of startBridge function
 
@@ -1258,12 +1287,12 @@
      * Start bridge with incoming call ID (for headless/webhook operation)
      * This is called by Puppeteer when a webhook arrives
      */
-    window.startBridgeWithCallId = async function(inboundCallId) {
+    window.startBridgeWithCallId = async function (inboundCallId) {
       console.log('[Bridge] 📞 Starting bridge for inbound call:', inboundCallId);
-      
+
       // Store the inbound call ID globally
       window.inboundCallId = inboundCallId;
-      
+
       // Start the bridge (will use inbound call ID instead of creating new call)
       startBridge();
     };
