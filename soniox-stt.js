@@ -312,6 +312,9 @@ class SonioxSTT {
         const chunk = this.audioBuffer.slice(0, this.SAMPLES_PER_CHUNK);
         this.audioBuffer = this.audioBuffer.slice(this.SAMPLES_PER_CHUNK);
         
+        // Update last audio time (for keepalive tracking)
+        this.lastAudioTime = Date.now();
+        
         chunkCount++;
         
         // DETAILED logging for first chunk
