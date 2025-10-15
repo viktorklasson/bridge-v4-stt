@@ -291,6 +291,11 @@ class SonioxSTT {
     this.audioProcessor.onaudioprocess = (e) => {
       debugCounter++;
       
+      // ALWAYS log first 20 callbacks to debug
+      if (debugCounter <= 20) {
+        console.log('[Soniox] 🔥 onaudioprocess callback #' + debugCounter + ' FIRED - Active:', this.isActive, 'WS:', this.ws?.readyState);
+      }
+      
       if (!this.isActive || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
         if (debugCounter % 50 === 0) {
           console.log('[Soniox] Not ready - Active:', this.isActive, 'WS:', this.ws?.readyState);
