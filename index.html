@@ -278,16 +278,31 @@
     let vertoMicrophoneStream = null;
     let phoneToAIStream = null; // Synthetic stream for bridging phone to AI
     
-    // Monkey-patch getUserMedia for HEADLESS operation (no SDK, just Verto)
+    // Monkey-patch getUserMedia for HEADLESS operation
     const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    let getUserMediaCallCount = 0;
     navigator.mediaDevices.getUserMedia = async function(constraints) {
-      console.log('[Bridge] getUserMedia intercepted (Verto):', constraints);
+      getUserMediaCallCount++;
+      console.log('[Bridge] getUserMedia intercepted - Call #' + getUserMediaCallCount, constraints);
       
       if (constraints && constraints.audio) {
-        // Verto wants audio - give it virtual audio (AI output → Remote Party)
-        console.log('[Bridge] → Returning VIRTUAL audio source for Verto output (AI→Phone)');
-        addStatus('📡 Verto: using virtual audio (AI→Phone)', 'info');
-        return virtualAudioSource.getMediaStream();
+        // First call is from Verto (for output) - give it virtual audio
+        if (getUserMediaCallCount === 1) {
+          console.log('[Bridge] → Call #1 (Verto): Returning VIRTUAL audio source (AI→Phone)');
+          addStatus('📡 Verto: using virtual audio (AI→Phone)', 'info');
+          return virtualAudioSource.getMediaStream();
+        }
+        // Second call is from Soniox SDK (for input) - give it phone audio
+        else if (getUserMediaCallCount === 2 && phoneAudioStream) {
+          console.log('[Bridge] → Call #2 (Soniox SDK): Returning PHONE audio stream (Phone→STT)');
+          addStatus('🎤 Soniox SDK: using phone audio stream', 'info');
+          return phoneAudioStream;
+        }
+        // Fallback
+        else {
+          console.log('[Bridge] → Call #' + getUserMediaCallCount + ': Returning virtual audio (default)');
+          return virtualAudioSource.getMediaStream();
+        }
       }
       
       return originalGetUserMedia(constraints);

@@ -87,9 +87,10 @@ class SonioxSTT {
    */
   async connectWebSocket() {
     return new Promise((resolve, reject) => {
-      const wsUrl = `wss://api.soniox.com/transcribe-websocket`;
+      // CORRECT endpoint from official docs
+      const wsUrl = `wss://stt-rt.soniox.com/transcribe-websocket`;
       
-      console.log('[Soniox] Connecting to WebSocket...');
+      console.log('[Soniox] Connecting to CORRECT endpoint:', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
       this.ws.binaryType = 'arraybuffer';
@@ -98,14 +99,14 @@ class SonioxSTT {
         console.log('[Soniox] ✅✅✅ WebSocket CONNECTED successfully!');
         
         // Send configuration message
-        // Based on Soniox WebSocket API documentation
+        // Using CORRECT field names from official WebSocket API docs
         const config = {
           api_key: this.apiKey,
-          model: 'en_v2',
+          model: 'stt-rt-preview',  // Real-time model
           enable_endpoint_detection: true,
           audio_format: 'pcm_s16le',
-          sample_rate_hertz: this.TARGET_SAMPLE_RATE,
-          num_audio_channels: 1  // Required for PCM - using num_audio_channels instead of num_channels
+          sample_rate: this.TARGET_SAMPLE_RATE,  // NOT sample_rate_hertz
+          num_channels: 1  // NOT num_audio_channels
         };
         
         console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));
@@ -146,36 +147,53 @@ class SonioxSTT {
       // Log ALL messages from Soniox for debugging
       console.log('[Soniox] 📩 Received message:', JSON.stringify(message).substring(0, 200));
       
-      // Handle Soniox v10 format: fw (final words), nfw (non-final words)
-      if (message.fw !== undefined || message.nfw !== undefined) {
-        const finalWords = message.fw || [];
-        const nonFinalWords = message.nfw || [];
+      // Handle CORRECT format from official WebSocket API docs
+      if (message.tokens !== undefined) {
+        const tokens = message.tokens || [];
         
-        console.log('[Soniox] Words - Final:', finalWords.length, 'Non-final:', nonFinalWords.length);
+        console.log('[Soniox] 📩 Received', tokens.length, 'tokens');
         
-        // Build transcript from final words
-        if (finalWords.length > 0) {
-          const finalText = finalWords.map(w => w.t || w.text || '').join('');
+        let finalText = '';
+        let partialText = '';
+        let hasEndpoint = false;
+        
+        // Process tokens
+        for (const token of tokens) {
+          const text = token.text || '';
+          
+          // Check for endpoint marker
+          if (text === '<end>') {
+            hasEndpoint = true;
+            console.log('[Soniox] 🎯 Endpoint marker found!');
+            continue;
+          }
+          
+          if (token.is_final) {
+            finalText += text;
+          } else {
+            partialText += text;
+          }
+        }
+        
+        // Update accumulated transcripts
+        if (finalText) {
           this.currentTranscript += finalText;
           console.log('[Soniox] ✅ Final text added:', finalText, '| Total:', this.currentTranscript);
         }
         
-        // Build partial from non-final words
-        if (nonFinalWords.length > 0) {
-          this.partialTranscript = nonFinalWords.map(w => w.t || w.text || '').join('');
-          console.log('[Soniox] 📝 Non-final text:', this.partialTranscript);
-        }
+        // Update partial transcript
+        this.partialTranscript = partialText;
         
-        // Send partial updates
-        const fullPartial = this.currentTranscript + this.partialTranscript;
+        // Send partial updates (final + partial)
+        const fullPartial = this.currentTranscript + partialText;
         if (fullPartial) {
           console.log('[Soniox] 📝 Partial update:', fullPartial);
           this.onPartialTranscript(fullPartial);
         }
         
-        // Check for endpoint (when we have final text and non-final is empty)
-        if (this.currentTranscript.trim() && nonFinalWords.length === 0 && finalWords.length > 0) {
-          console.log('[Soniox] ========== ENDPOINT DETECTED (implicit) ==========');
+        // If endpoint detected, send complete transcript and reset
+        if (hasEndpoint && this.currentTranscript.trim()) {
+          console.log('[Soniox] ========== ENDPOINT DETECTED ==========');
           console.log('[Soniox] ✅✅✅ Complete transcript:', this.currentTranscript);
           this.onTranscript(this.currentTranscript.trim());
           
@@ -186,73 +204,11 @@ class SonioxSTT {
         }
         
         // Log audio progress
-        if (message.fpt !== undefined) {
-          console.log('[Soniox] Audio processed:', message.fpt, 'ms (final),', message.tpt, 'ms (total)');
+        if (message.final_audio_proc_ms !== undefined) {
+          console.log('[Soniox] Audio processed:', message.final_audio_proc_ms, 'ms (final),', message.total_audio_proc_ms, 'ms (total)');
         }
         
         return;
-      }
-      
-      // Handle old-style result format (if API changes)
-      if (message.result) {
-        const result = message.result;
-        
-        // Extract tokens
-        if (result.tokens && result.tokens.length > 0) {
-          let finalText = '';
-          let partialText = '';
-          let foundEndToken = false;
-          
-          for (const token of result.tokens) {
-            const text = token.text || '';
-            
-            // Check for endpoint marker
-            if (text === '<end>' || token.type === 'endpoint') {
-              foundEndToken = true;
-              console.log('[Soniox] 🎯 Endpoint detected!');
-              continue;
-            }
-            
-            if (token.is_final) {
-              finalText += text;
-            } else {
-              partialText += text;
-            }
-          }
-          
-          // Update accumulated transcripts
-          if (finalText) {
-            this.currentTranscript += finalText;
-            console.log('[Soniox] ✅ Final text added:', finalText, '| Total:', this.currentTranscript);
-          }
-          
-          // Update partial transcript
-          this.partialTranscript = partialText;
-          
-          // Send partial updates (final + partial)
-          const fullPartial = this.currentTranscript + partialText;
-          if (fullPartial) {
-            console.log('[Soniox] 📝 Partial update:', fullPartial);
-            this.onPartialTranscript(fullPartial);
-          }
-          
-          // If endpoint detected, send complete transcript and reset
-          if (foundEndToken && this.currentTranscript.trim()) {
-            console.log('[Soniox] ========== ENDPOINT DETECTED ==========');
-            console.log('[Soniox] ✅✅✅ Complete transcript:', this.currentTranscript);
-            this.onTranscript(this.currentTranscript.trim());
-            
-            // Reset for next utterance
-            this.currentTranscript = '';
-            this.partialTranscript = '';
-            console.log('[Soniox] Reset for next utterance');
-          }
-        }
-        
-        // Log audio progress
-        if (result.audio_final_proc_ms !== undefined) {
-          console.log('[Soniox] Audio processed:', result.audio_final_proc_ms, 'ms (final),', result.audio_total_proc_ms, 'ms (total)');
-        }
       } else if (message.error) {
         console.error('[Soniox] ❌❌❌ Error from server:', message.error);
         this.onError(new Error(message.error));
