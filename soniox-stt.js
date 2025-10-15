@@ -311,10 +311,13 @@ class SonioxSTT {
       }
       const avgAmplitude = sum / inputData.length;
       
-      if (debugCounter % 50 === 0) {
-        console.log('[Soniox] Audio chunk #' + debugCounter, '- Avg:', avgAmplitude.toFixed(4), 'Max:', maxSample.toFixed(4));
+      // Log EVERY callback to see what's happening
+      if (debugCounter <= 10 || debugCounter % 10 === 0) {
+        console.log('[Soniox] 🎤 Audio callback #' + debugCounter, '- Avg:', avgAmplitude.toFixed(6), 'Max:', maxSample.toFixed(6), 'Samples:', inputData.length);
         if (maxSample < 0.001) {
-          console.warn('[Soniox] ⚠️ AUDIO IS SILENT! Max sample:', maxSample);
+          console.warn('[Soniox] ⚠️⚠️⚠️ AUDIO IS SILENT! Max sample:', maxSample);
+        } else {
+          console.log('[Soniox] ✅ AUDIO HAS SIGNAL! Max:', maxSample);
         }
       }
       
@@ -337,8 +340,8 @@ class SonioxSTT {
         this.ws.send(bytes);
         
         chunkCount++;
-        if (chunkCount === 1 || chunkCount % 50 === 0) {
-          console.log('[Soniox] 📤 Sent', chunkCount, 'audio chunks');
+        if (chunkCount === 1 || chunkCount % 10 === 0) {
+          console.log('[Soniox] 📤 Sent', chunkCount, 'audio chunks (', chunk.length, 'samples each)');
         }
       }
     };
