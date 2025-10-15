@@ -160,7 +160,13 @@
   <script src="https://app.salesys.se/libs/easytelecom/verto-min-0.0.2.js"></script>
   <script src="https://app.salesys.se/libs/easytelecom/media-device-id.min.js"></script>
   <script src="/virtual-audio-source.js"></script>
-  <script src="/soniox-stt.js"></script>
+  <!-- Soniox Official SDK -->
+  <script type="module">
+    import { RecordTranscribe } from "https://unpkg.com/@soniox/speech-to-text-web@1.0.0?module";
+    window.SonioxRecordTranscribe = RecordTranscribe;
+    console.log('[Soniox] Official SDK loaded');
+  </script>
+  <script src="/soniox-stt-sdk.js"></script>
   <script src="/elevenlabs-bridge.js"></script>
   <audio autoplay hidden id="audio-stream"></audio>
 
@@ -906,8 +912,8 @@
         
         console.log('[STT] ✅ Using REAL phoneAudioStream:', phoneAudioStream.id);
         
-        addStatus('🎤 Starting Soniox STT with phone audio...', 'info');
-        sonioxSTT = new SonioxSTT({
+        addStatus('🎤 Starting Soniox STT with OFFICIAL SDK...', 'info');
+        sonioxSTT = new SonioxSTTSDK({
           apiKey: sonioxConfig.apiKey,
           onTranscript: (text) => {
             // Called when complete transcript is ready (after endpoint detection)
