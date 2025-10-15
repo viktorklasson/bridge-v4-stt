@@ -160,13 +160,8 @@
   <script src="https://app.salesys.se/libs/easytelecom/verto-min-0.0.2.js"></script>
   <script src="https://app.salesys.se/libs/easytelecom/media-device-id.min.js"></script>
   <script src="/virtual-audio-source.js"></script>
-  <!-- Soniox Official SDK -->
-  <script type="module">
-    import { RecordTranscribe } from "https://unpkg.com/@soniox/speech-to-text-web@1.0.0?module";
-    window.SonioxRecordTranscribe = RecordTranscribe;
-    console.log('[Soniox] Official SDK loaded');
-  </script>
-  <script src="/soniox-stt-sdk.js"></script>
+  <!-- Use custom Soniox implementation with CORRECT API -->
+  <script src="/soniox-stt.js"></script>
   <script src="/elevenlabs-bridge.js"></script>
   <audio autoplay hidden id="audio-stream"></audio>
 
@@ -927,8 +922,8 @@
         
         console.log('[STT] ✅ Using REAL phoneAudioStream:', phoneAudioStream.id);
         
-        addStatus('🎤 Starting Soniox STT with OFFICIAL SDK...', 'info');
-        sonioxSTT = new SonioxSTTSDK({
+        addStatus('🎤 Starting Soniox STT with CORRECTED API...', 'info');
+        sonioxSTT = new SonioxSTT({
           apiKey: sonioxConfig.apiKey,
           onTranscript: (text) => {
             // Called when complete transcript is ready (after endpoint detection)
@@ -962,9 +957,13 @@
           }
         });
 
-        // Initialize Soniox SDK with phone audio stream
-        await sonioxSTT.initialize(phoneAudioStream);
-        addStatus('✅ Soniox SDK active - using official implementation', 'success');
+        // Initialize Soniox with phone audio stream (using correct API now)
+        await sonioxSTT.initialize(
+          phoneAudioStream,
+          window.preConnectedAudioContext,
+          window.preConnectedAudioSource
+        );
+        addStatus('✅ Soniox STT active with CORRECT API endpoint', 'success');
 
         // STEP 2: Initialize ElevenLabs in TEXT INPUT mode
         addStatus('🤖 Starting ElevenLabs in TEXT mode...', 'info');
