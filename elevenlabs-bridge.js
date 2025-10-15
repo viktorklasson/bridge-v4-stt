@@ -343,49 +343,21 @@ class ElevenLabsBridge {
 
     console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // Based on user confirmation that text input works, try these formats:
+    // DON'T send plain text - it causes "Invalid message received" error!
+    // ElevenLabs needs structured JSON
     
-    // Format 1: Plain text string (maybe no JSON?)
-    console.log('[ElevenLabs] Format 1 - Plain text string:', text.trim());
-    this.ws.send(text.trim());
-    
-    setTimeout(() => {
-      // Format 2: Simple text field
-      const msg2 = { text: text.trim() };
-      console.log('[ElevenLabs] Format 2 - {text}:', JSON.stringify(msg2));
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(msg2));
+    // Based on agent_chat_response_part structure, try user equivalent
+    const message = {
+      type: 'user_text_event',
+      user_text_part: {
+        text: text.trim(),
+        type: 'input'
       }
-    }, 100);
+    };
     
-    setTimeout(() => {
-      // Format 3: user_input event
-      const msg3 = {
-        type: 'user_input_event',
-        text: text.trim()
-      };
-      console.log('[ElevenLabs] Format 3 - user_input_event:', JSON.stringify(msg3));
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(msg3));
-      }
-    }, 200);
-    
-    setTimeout(() => {
-      // Format 4: conversation_event
-      const msg4 = {
-        type: 'conversation_event',
-        conversation_event: {
-          type: 'user_text',
-          text: text.trim()
-        }
-      };
-      console.log('[ElevenLabs] Format 4 - conversation_event:', JSON.stringify(msg4));
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(msg4));
-      }
-    }, 300);
-    
-    console.log('[ElevenLabs] ✅ Trying 4 different text formats');
+    console.log('[ElevenLabs] Sending structured format:', JSON.stringify(message));
+    this.ws.send(JSON.stringify(message));
+    console.log('[ElevenLabs] ✅ Text message sent');
     console.log('[ElevenLabs] Waiting for AI response...');
   }
 
