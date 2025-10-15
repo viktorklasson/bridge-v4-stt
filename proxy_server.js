@@ -152,9 +152,10 @@ async function handleWebhook(req, res) {
         ? `${process.env.RENDER_EXTERNAL_URL}/api/notify`
         : 'https://bridge-gxqe.onrender.com/api/notify';
       
+      // DON'T answer immediately - let browser initialize agent first
+      // Just start recording and enable notifications
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([
-        { action: 'answer' }, // CRITICAL: Answer the call first!
         { action: 'recording_start', param: { mono: 'false' } },
         { action: 'notify', param: { url: notifyUrl } }
       ]));

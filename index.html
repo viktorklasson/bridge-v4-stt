@@ -678,13 +678,33 @@
               console.log('[Call] Inbound mode - Park call ID:', currentCallId);
               console.log('[Call] Inbound call to answer:', window.inboundCallId);
               
-              // Wait briefly for park call to establish (reduced for faster response)
+              // Wait for AI to be ready before answering and bridging
               setTimeout(async () => {
-                // Step 1: Call is already answered by webhook, just bridge
-                console.log('[Call] Call already answered by webhook, proceeding to bridge');
-                addStatus('✅ Call already answered, bridging...', 'success');
+                // Step 1: Answer the inbound call NOW (agent is ready)
+                console.log('[Call] AI ready! Answering inbound call now...');
+                addStatus('🤖 AI ready - answering call...', 'success');
                 
-                // Bridge the two calls together
+                await fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": "Bearer " + telnectToken,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    "actions": [{
+                      "action": "answer"
+                    }]
+                  })
+                });
+                
+                console.log('[Call] ✅ Call answered');
+                addStatus('✅ Call answered - caller connected', 'success');
+                
+                // Wait briefly for answer to complete
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Step 2: Bridge the two calls together
+                console.log('[Call] Bridging calls...');
                 fetch(`/proxy/telnect/api/v1/Calls/${window.inboundCallId}`, {
                   method: "POST",
                   headers: {
