@@ -343,39 +343,49 @@ class ElevenLabsBridge {
 
     console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // Try simple "text" field first
-    const simpleMessage = {
-      text: text.trim()
-    };
+    // Based on user confirmation that text input works, try these formats:
     
-    console.log('[ElevenLabs] Trying simple format (just text field):', JSON.stringify(simpleMessage));
-    this.ws.send(JSON.stringify(simpleMessage));
+    // Format 1: Plain text string (maybe no JSON?)
+    console.log('[ElevenLabs] Format 1 - Plain text string:', text.trim());
+    this.ws.send(text.trim());
     
-    // Also try user_input format
     setTimeout(() => {
-      const message2 = {
-        type: 'user_input',
-        text: text.trim()
-      };
-      console.log('[ElevenLabs] Also trying user_input format:', JSON.stringify(message2));
+      // Format 2: Simple text field
+      const msg2 = { text: text.trim() };
+      console.log('[ElevenLabs] Format 2 - {text}:', JSON.stringify(msg2));
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(message2));
+        this.ws.send(JSON.stringify(msg2));
       }
     }, 100);
     
-    // And user_message format
     setTimeout(() => {
-      const message3 = {
-        type: 'user_message',
-        user_message: text.trim()
+      // Format 3: user_input event
+      const msg3 = {
+        type: 'user_input_event',
+        text: text.trim()
       };
-      console.log('[ElevenLabs] Also trying user_message format:', JSON.stringify(message3));
+      console.log('[ElevenLabs] Format 3 - user_input_event:', JSON.stringify(msg3));
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(message3));
+        this.ws.send(JSON.stringify(msg3));
       }
     }, 200);
     
-    console.log('[ElevenLabs] ✅ Text messages sent, trying multiple formats');
+    setTimeout(() => {
+      // Format 4: conversation_event
+      const msg4 = {
+        type: 'conversation_event',
+        conversation_event: {
+          type: 'user_text',
+          text: text.trim()
+        }
+      };
+      console.log('[ElevenLabs] Format 4 - conversation_event:', JSON.stringify(msg4));
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(msg4));
+      }
+    }, 300);
+    
+    console.log('[ElevenLabs] ✅ Trying 4 different text formats');
     console.log('[ElevenLabs] Waiting for AI response...');
   }
 
