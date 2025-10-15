@@ -505,10 +505,17 @@
           // ALWAYS set phoneAudioStream - this is the WebRTC audio we need!
           phoneAudioStream = stream;
           console.log('[Audio] ✅ phoneAudioStream SET:', stream.id);
-          console.log('[Audio] Note: Stream captured, but will initialize AI AFTER bridge completes');
           
-          // DON'T initialize here - the stream has no audio yet (not bridged)
-          // Initialization happens after bridge completes (see bridge callback)
+          // CRITICAL: Pre-create audio context and connect to stream NOW (while fresh)
+          // But don't initialize Soniox WebSocket yet - wait for bridge
+          if (window.inboundCallId && !window.preConnectedAudioContext) {
+            console.log('[Audio] 🎤 PRE-CONNECTING to audio stream (before bridge)...');
+            window.preConnectedAudioContext = new AudioContext({ sampleRate: 16000 });
+            window.preConnectedAudioSource = window.preConnectedAudioContext.createMediaStreamSource(stream);
+            console.log('[Audio] ✅ Audio context pre-connected to live stream');
+            console.log('[Audio] Context state:', window.preConnectedAudioContext.state);
+            console.log('[Audio] Will initialize Soniox WebSocket after bridge...');
+          }
           
           console.log('[Audio] Remote party stream received:', {
             id: stream.id,
@@ -924,8 +931,13 @@
           }
         });
 
-        // Initialize Soniox with REAL phone audio stream (NOT fake mic)
-        await sonioxSTT.initialize(phoneAudioStream);
+        // Initialize Soniox with REAL phone audio stream
+        // If we pre-connected the audio context, use that (better audio capture)
+        await sonioxSTT.initialize(
+          phoneAudioStream,
+          window.preConnectedAudioContext,
+          window.preConnectedAudioSource
+        );
         addStatus('✅ Soniox STT active - listening to REAL phone audio', 'success');
 
         // STEP 2: Initialize ElevenLabs in TEXT INPUT mode

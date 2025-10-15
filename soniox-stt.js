@@ -33,22 +33,29 @@ class SonioxSTT {
    * Initialize and connect to Soniox
    * @param {MediaStream} audioStream - The audio stream to transcribe
    */
-  async initialize(audioStream) {
+  async initialize(audioStream, preConnectedContext = null, preConnectedSource = null) {
     console.log('[Soniox] ========== INITIALIZING STT ==========');
     console.log('[Soniox] Audio stream provided:', !!audioStream);
     console.log('[Soniox] Audio stream ID:', audioStream?.id);
     console.log('[Soniox] Audio stream active:', audioStream?.active);
     console.log('[Soniox] Audio tracks:', audioStream?.getAudioTracks().length);
+    console.log('[Soniox] Pre-connected context provided:', !!preConnectedContext);
     
     try {
       this.onStatusChange('initializing');
       
-      // Create audio context at 16kHz (Soniox requirement)
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: this.TARGET_SAMPLE_RATE
-      });
-      
-      console.log('[Soniox] ✅ Audio context created at', this.audioContext.sampleRate, 'Hz');
+      // Use pre-connected context if provided (connected while stream was fresh)
+      if (preConnectedContext && preConnectedSource) {
+        console.log('[Soniox] ✅ Using PRE-CONNECTED audio context (connected before bridge)');
+        this.audioContext = preConnectedContext;
+        this.audioSource = preConnectedSource;
+      } else {
+        // Create audio context at 16kHz (Soniox requirement)
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+          sampleRate: this.TARGET_SAMPLE_RATE
+        });
+        console.log('[Soniox] ✅ Audio context created at', this.audioContext.sampleRate, 'Hz');
+      }
       
       // Connect to Soniox WebSocket
       console.log('[Soniox] Connecting to WebSocket...');
@@ -57,7 +64,8 @@ class SonioxSTT {
       
       // Start processing audio
       console.log('[Soniox] Starting audio processing...');
-      this.startAudioProcessing(audioStream);
+      // Only pass stream if we don't have pre-connected source
+      this.startAudioProcessing(audioStream, !!preConnectedSource);
       console.log('[Soniox] ✅ Audio processing started');
       
       this.isActive = true;
@@ -261,13 +269,18 @@ class SonioxSTT {
   /**
    * Start processing audio from the stream
    */
-  startAudioProcessing(audioStream) {
+  startAudioProcessing(audioStream, usePreConnected = false) {
     if (!this.audioContext) {
       throw new Error('Audio context not initialized');
     }
 
-    // Create audio source from stream
-    this.audioSource = this.audioContext.createMediaStreamSource(audioStream);
+    // Create audio source from stream (unless using pre-connected)
+    if (!usePreConnected) {
+      console.log('[Soniox] Creating MediaStreamSource from audio stream...');
+      this.audioSource = this.audioContext.createMediaStreamSource(audioStream);
+    } else {
+      console.log('[Soniox] Using pre-connected audio source');
+    }
     
     // Create processor for capturing audio
     this.audioProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
