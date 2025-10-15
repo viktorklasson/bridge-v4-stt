@@ -27,6 +27,10 @@ class SonioxSTT {
     this.SAMPLES_PER_CHUNK = 1600; // 100ms at 16kHz
     this.TARGET_SAMPLE_RATE = 16000; // Soniox expects 16kHz
     
+    // Keepalive to maintain session during silence
+    this.keepaliveInterval = null;
+    this.lastAudioTime = Date.now();
+    
     console.log('[Soniox] STT initialized');
   }
 
@@ -71,6 +75,9 @@ class SonioxSTT {
       
       this.isActive = true;
       this.onStatusChange('connected');
+      
+      // Start keepalive timer to maintain session during silence
+      this.startKeepalive();
       
       console.log('[Soniox] ========== STT FULLY ACTIVE ==========');
       
@@ -376,6 +383,39 @@ class SonioxSTT {
   }
 
   /**
+   * Start keepalive timer to maintain session during silence
+   */
+  startKeepalive() {
+    // Send keepalive every 10 seconds if no audio sent recently
+    this.keepaliveInterval = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      const silenceDuration = Date.now() - this.lastAudioTime;
+      
+      // If more than 5 seconds of silence, send keepalive
+      if (silenceDuration > 5000) {
+        console.log('[Soniox] Sending keepalive (silence:', Math.round(silenceDuration/1000), 's)');
+        this.ws.send(JSON.stringify({ type: 'keepalive' }));
+      }
+    }, 10000); // Check every 10 seconds
+
+    console.log('[Soniox] Keepalive timer started');
+  }
+
+  /**
+   * Stop keepalive timer
+   */
+  stopKeepalive() {
+    if (this.keepaliveInterval) {
+      clearInterval(this.keepaliveInterval);
+      this.keepaliveInterval = null;
+      console.log('[Soniox] Keepalive timer stopped');
+    }
+  }
+
+  /**
    * Manually finalize current transcript (force endpoint)
    */
   finalize() {
@@ -392,6 +432,9 @@ class SonioxSTT {
     console.log('[Soniox] Stopping STT...');
     
     this.isActive = false;
+    
+    // Stop keepalive
+    this.stopKeepalive();
     
     if (this.audioProcessor) {
       this.audioProcessor.disconnect();
