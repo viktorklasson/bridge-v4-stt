@@ -39,17 +39,24 @@ class SonioxSTTSDK {
       }
       
       console.log('[Soniox SDK] Creating RecordTranscribe instance...');
+      console.log('[Soniox SDK] Note: SDK may not support external streams, will try...');
       
       // Create RecordTranscribe instance
+      // Try with just apiKey first (SDK might handle microphone internally)
       this.recordTranscribe = new window.SonioxRecordTranscribe({
-        apiKey: this.apiKey,
-        audioStream: audioStream  // Use existing stream instead of requesting microphone
+        apiKey: this.apiKey
       });
       
-      console.log('[Soniox SDK] Starting transcription...');
+      console.log('[Soniox SDK] RecordTranscribe instance created');
       
-      // Start transcribing
-      this.recordTranscribe.start({
+      // Store our stream for later use if SDK needs it
+      this.externalStream = audioStream;
+      
+      console.log('[Soniox SDK] Starting transcription...');
+      console.log('[Soniox SDK] External stream available:', !!this.externalStream);
+      
+      // Start transcribing - SDK will request microphone unless we provide stream
+      const startConfig = {
         model: 'en_v2',
         enable_endpoint_detection: true,
         onStarted: () => {
