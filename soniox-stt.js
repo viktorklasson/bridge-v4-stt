@@ -345,22 +345,39 @@ class SonioxSTT {
         const chunk = this.audioBuffer.slice(0, this.SAMPLES_PER_CHUNK);
         this.audioBuffer = this.audioBuffer.slice(this.SAMPLES_PER_CHUNK);
         
-        // Send as binary data
-        const bytes = new Uint8Array(chunk.buffer);
-        
         chunkCount++;
         
+        // DETAILED logging for first chunk
         if (chunkCount === 1) {
-          console.log('[Soniox] 🚀🚀🚀 SENDING FIRST CHUNK');
-          console.log('[Soniox] Chunk size:', bytes.length, 'bytes');
-          console.log('[Soniox] Samples:', chunk.length);
+          console.log('[Soniox] ==================== FIRST CHUNK DETAILS ====================');
+          console.log('[Soniox] Chunk length:', chunk.length, 'Int16 samples');
+          console.log('[Soniox] Expected bytes:', chunk.length * 2, '(Int16 = 2 bytes per sample)');
           console.log('[Soniox] First 20 PCM Int16 values:', Array.from(chunk.slice(0, 20)));
-          console.log('[Soniox] First 20 bytes (Uint8):', Array.from(bytes.slice(0, 20)));
+          
+          // Check byte order (little-endian)
+          const testValue = chunk[0];
+          const lowByte = testValue & 0xFF;
+          const highByte = (testValue >> 8) & 0xFF;
+          console.log('[Soniox] First sample:', testValue, '= bytes:', lowByte, highByte, '(little-endian: low byte first)');
+        }
+        
+        // Send as binary data - direct buffer access for proper byte order
+        const bytes = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+        
+        if (chunkCount === 1) {
+          console.log('[Soniox] Uint8Array length:', bytes.length, 'bytes');
+          console.log('[Soniox] First 40 bytes (Uint8):', Array.from(bytes.slice(0, 40)));
           console.log('[Soniox] WebSocket readyState:', this.ws.readyState, '(1=OPEN)');
-          console.log('[Soniox] WebSocket bufferedAmount:', this.ws.bufferedAmount);
+          console.log('[Soniox] WebSocket bufferedAmount BEFORE send:', this.ws.bufferedAmount);
         }
         
         this.ws.send(bytes);
+        
+        if (chunkCount === 1) {
+          console.log('[Soniox] WebSocket bufferedAmount AFTER send:', this.ws.bufferedAmount);
+          console.log('[Soniox] ==================== END FIRST CHUNK ====================');
+        }
+        
         console.log('[Soniox] ✅ ws.send() called for chunk #' + chunkCount);
         
         if (chunkCount <= 5 || chunkCount % 10 === 0) {
