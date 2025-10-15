@@ -326,8 +326,13 @@ class ElevenLabsBridge {
    * @param {string} text - The user's message text
    */
   sendTextMessage(text) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.conversationReady) {
-      console.warn('[ElevenLabs] Cannot send text - not ready');
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.error('[ElevenLabs] ❌ Cannot send text - WebSocket not open. State:', this.ws?.readyState);
+      return;
+    }
+    
+    if (!this.conversationReady) {
+      console.error('[ElevenLabs] ❌ Cannot send text - Conversation not ready yet');
       return;
     }
 
@@ -336,16 +341,18 @@ class ElevenLabsBridge {
       return;
     }
 
-    console.log('[ElevenLabs] 📤 Sending text message:', text);
+    console.log('[ElevenLabs] 📤📤📤 Sending USER TEXT MESSAGE to AI:', text);
 
-    // Send user message as text
+    // Send user message as text (try standard format)
     const message = {
       type: 'user_message',
       user_message: text.trim()
     };
 
+    console.log('[ElevenLabs] Message payload:', JSON.stringify(message));
     this.ws.send(JSON.stringify(message));
-    console.log('[ElevenLabs] ✅ Text message sent');
+    console.log('[ElevenLabs] ✅ Text message sent via WebSocket');
+    console.log('[ElevenLabs] Waiting for AI response...');
   }
 
   /**
@@ -422,17 +429,18 @@ class ElevenLabsBridge {
           }
         } else if (message.type === 'agent_response') {
           const agentText = message.agent_response_event?.agent_response || message.agent_response;
-          console.log('[ElevenLabs] Agent response:', agentText);
+          console.log('[ElevenLabs] 🤖🤖🤖 Agent TEXT response:', agentText);
           this.onAgentMessage(agentText);
         } else if (message.type === 'agent_response_correction') {
           console.log('[ElevenLabs] Agent correction:', message);
         } else if (message.type === 'user_transcript') {
           const userText = message.user_transcription_event?.user_transcript || message.user_transcript;
-          console.log('[ElevenLabs] 🎤 User said:', userText);
+          console.log('[ElevenLabs] 🎤 User transcript (from ElevenLabs):', userText);
         } else if (message.type === 'interruption') {
           console.log('[ElevenLabs] User interrupted agent');
         } else {
-          console.log('[ElevenLabs] Unknown message type:', message);
+          console.log('[ElevenLabs] ⚠️ Unknown/unhandled message type:', message.type);
+          console.log('[ElevenLabs] Full message:', JSON.stringify(message).substring(0, 500));
         }
       } catch (error) {
         console.error('[ElevenLabs] Failed to parse message:', error, data);

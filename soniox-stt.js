@@ -105,8 +105,9 @@ class SonioxSTT {
           model: 'stt-rt-preview',  // Real-time model
           enable_endpoint_detection: true,
           audio_format: 'pcm_s16le',
-          sample_rate: this.TARGET_SAMPLE_RATE,  // NOT sample_rate_hertz
-          num_channels: 1  // NOT num_audio_channels
+          sample_rate: this.TARGET_SAMPLE_RATE,
+          num_channels: 1,
+          language_hints: ['sv']  // Swedish language
         };
         
         console.log('[Soniox] 📤 Sending config:', JSON.stringify(config));
