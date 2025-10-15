@@ -107,7 +107,10 @@ class SonioxSTTSDK {
           this.onStatusChange('stopped');
         },
         onError: (status, message) => {
-          console.error('[Soniox SDK] Error:', status, message);
+          console.error('[Soniox SDK] ❌❌❌ ERROR');
+          console.error('[Soniox SDK] Status:', status);
+          console.error('[Soniox SDK] Message:', message);
+          console.error('[Soniox SDK] Full error object:', {status, message});
           this.onError(new Error(`${status}: ${message}`));
           this.onStatusChange('error');
         }
@@ -116,7 +119,11 @@ class SonioxSTTSDK {
       console.log('[Soniox SDK] ========== SDK FULLY ACTIVE ==========');
       
     } catch (error) {
-      console.error('[Soniox SDK] ❌ Initialization failed:', error);
+      console.error('[Soniox SDK] ❌❌❌ Initialization failed');
+      console.error('[Soniox SDK] Error name:', error?.name);
+      console.error('[Soniox SDK] Error message:', error?.message);
+      console.error('[Soniox SDK] Error stack:', error?.stack);
+      console.error('[Soniox SDK] Full error:', error);
       this.onStatusChange('error');
       this.onError(error);
       throw error;

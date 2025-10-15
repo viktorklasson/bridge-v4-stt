@@ -207,13 +207,29 @@ async function handleWebhook(req, res) {
         });
         
         // Monitor page console for debugging
-        page.on('console', msg => {
+        page.on('console', async msg => {
           const text = msg.text();
+          const type = msg.type();
+          
           // Show all important log types (Bridge, Call, ElevenLabs, Audio, Soniox, STT)
           if (text.includes('[Bridge]') || text.includes('[Call]') || text.includes('[ElevenLabs]') ||
               text.includes('[Audio]') || text.includes('[Soniox]') || text.includes('[STT]') ||
               text.includes('onRemoteStream') || text.includes('=========')) {
-            console.log(`[Browser:${webhook.id}]`, text);
+            
+            // For errors, try to get actual error object
+            if (type === 'error' && text.includes('JSHandle@error')) {
+              try {
+                const args = msg.args();
+                for (const arg of args) {
+                  const val = await arg.jsonValue().catch(() => arg.toString());
+                  console.log(`[Browser:${webhook.id}]`, '[ERROR DETAIL]', val);
+                }
+              } catch (e) {
+                console.log(`[Browser:${webhook.id}]`, text);
+              }
+            } else {
+              console.log(`[Browser:${webhook.id}]`, text);
+            }
           }
         });
         
