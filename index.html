@@ -789,7 +789,7 @@
                   addStatus('✅ Call answered - caller connected', 'success');
 
                    // Wait briefly for answer to complete
-                   await new Promise(resolve => setTimeout(resolve, 300));
+                   await new Promise(resolve => setTimeout(resolve, 200));
 
                   // Step 2: Bridge the two calls together
                   console.log('[Call] Bridging calls...');
@@ -820,7 +820,7 @@
                         startRecording(currentCallId);
 
                         // CRITICAL: Wait for audio to flow through bridge, THEN initialize AI
-                        console.log('[Call] Waiting 1 second for bridge audio to flow...');
+                        console.log('[Call] Waiting 700ms for bridge audio to flow...');
                         setTimeout(() => {
                           console.log('[Call] ⏰ Bridge should be active, initializing AI now...');
                           if (phoneAudioStream && !sonioxSTT) {
@@ -828,7 +828,7 @@
                           } else {
                             console.warn('[Call] ⚠️ Cannot initialize - phoneAudioStream:', !!phoneAudioStream, 'sonioxSTT exists:', !!sonioxSTT);
                           }
-                        }, 1000); // Reduced to 1 second for faster agent join
+                        }, 700); // Balanced timing for speed + stability
                       } else {
                         const errorText = await res.text();
                         console.error('[Call] Bridge failed:', res.status, errorText);
@@ -839,7 +839,7 @@
                       console.error('[Call] Error in inbound call flow:', err);
                       addStatus('❌ Failed to bridge inbound call: ' + err.message, 'error');
                     });
-                }, 500); // Reduced to 500ms for faster agent join
+                }, 400); // Balanced timing for speed + stability
 
               } else {
                 // Outbound call mode (disabled - only use inbound webhook mode)
