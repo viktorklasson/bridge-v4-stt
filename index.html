@@ -216,7 +216,7 @@
       folder: '/tics',  // Use existing tics folder
       files: ['tic1.mp3', 'tic2.mp3', 'tic3.mp3'],// Your existing sound files
       enabled: true,
-      probability: 0.6 // 60% chance to play sound
+      probability: 0.7 // 70% chance to play sound
     };
 
     // Telnect recording configuration
@@ -788,8 +788,8 @@
                   console.log('[Call] ✅ Call answered');
                   addStatus('✅ Call answered - caller connected', 'success');
 
-                  // Wait briefly for answer to complete
-                  await new Promise(resolve => setTimeout(resolve, 500));
+                   // Wait briefly for answer to complete
+                   await new Promise(resolve => setTimeout(resolve, 300));
 
                   // Step 2: Bridge the two calls together
                   console.log('[Call] Bridging calls...');
@@ -820,7 +820,7 @@
                         startRecording(currentCallId);
 
                         // CRITICAL: Wait for audio to flow through bridge, THEN initialize AI
-                        console.log('[Call] Waiting 2 seconds for bridge audio to flow...');
+                        console.log('[Call] Waiting 1 second for bridge audio to flow...');
                         setTimeout(() => {
                           console.log('[Call] ⏰ Bridge should be active, initializing AI now...');
                           if (phoneAudioStream && !sonioxSTT) {
@@ -828,7 +828,7 @@
                           } else {
                             console.warn('[Call] ⚠️ Cannot initialize - phoneAudioStream:', !!phoneAudioStream, 'sonioxSTT exists:', !!sonioxSTT);
                           }
-                        }, 2000); // Wait 2 seconds for bridge audio to flow
+                        }, 1000); // Reduced to 1 second for faster agent join
                       } else {
                         const errorText = await res.text();
                         console.error('[Call] Bridge failed:', res.status, errorText);
@@ -839,7 +839,7 @@
                       console.error('[Call] Error in inbound call flow:', err);
                       addStatus('❌ Failed to bridge inbound call: ' + err.message, 'error');
                     });
-                }, 1000); // Wait 1 second for park call to establish (reduced for faster response)
+                }, 500); // Reduced to 500ms for faster agent join
 
               } else {
                 // Outbound call mode (disabled - only use inbound webhook mode)
