@@ -133,24 +133,28 @@ class VirtualAudioSource {
    * Clear audio buffer/queue (for interruptions)
    */
   clearBuffer() {
-    console.log('[VirtualAudioSource] 🛑 Clearing buffer - had', this.audioQueue.length, 'chunks queued');
+    console.log('[VirtualAudioSource] 🛑 INTERRUPTION - Clearing buffer (had', this.audioQueue.length, 'chunks queued)');
     
-    // Stop currently playing audio
+    // Stop currently playing audio IMMEDIATELY
     if (this.currentSource) {
       try {
-        this.currentSource.stop();
+        this.currentSource.stop(0); // Stop immediately
         this.currentSource.disconnect();
       } catch (e) {
-        // Already stopped
+        console.log('[VirtualAudioSource] Source already stopped');
       }
       this.currentSource = null;
     }
     
     // Clear the queue
+    const clearedCount = this.audioQueue.length;
     this.audioQueue = [];
     this.isPlaying = false;
     
-    console.log('[VirtualAudioSource] ✅ Buffer cleared');
+    // Add brief silence to prevent audio gap
+    this.addSilence(50);
+    
+    console.log('[VirtualAudioSource] ✅ Buffer cleared -', clearedCount, 'chunks removed');
   }
 
   /**

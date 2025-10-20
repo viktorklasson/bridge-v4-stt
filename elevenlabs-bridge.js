@@ -447,15 +447,16 @@ class ElevenLabsBridge {
         } else if (message.type === 'user_transcript') {
           const userText = message.user_transcription_event?.user_transcript || message.user_transcript;
           console.log('[ElevenLabs] 🎤 User transcript (from ElevenLabs):', userText);
-        } else if (message.type === 'interruption') {
-          console.log('[ElevenLabs] 🛑 Server confirmed interruption - clearing AI audio');
+        } else if (message.type === 'interruption' || message.type === 'user_interruption') {
+          console.log('[ElevenLabs] 🛑🛑🛑 SERVER CONFIRMED INTERRUPTION - clearing audio');
           
-          // Clear any queued AI audio
+          // Aggressively clear any queued AI audio
           if (this.virtualAudioSource) {
             this.virtualAudioSource.clearBuffer();
           }
           
           window.isAISpeaking = false;
+          console.log('[ElevenLabs] AI audio cleared and stopped');
           
         } else if (message.type === 'agent_chat_response_part') {
           // Handle streaming text responses
