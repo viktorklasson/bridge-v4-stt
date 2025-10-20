@@ -1050,6 +1050,13 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
+            // Skip if this was just an interruption placeholder
+            if (text === '...') {
+              console.log('[STT→AI] Skipping placeholder interrupt message');
+              userInterruptionDetected = false;
+              return;
+            }
+
             // Reset interruption flag - user finished speaking
             userInterruptionDetected = false;
 
@@ -1083,23 +1090,15 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
                   console.log('[Interruption] Audio buffer cleared');
                 }
                 
-                // Send MULTIPLE interrupt signals to ElevenLabs to ensure it stops
-                if (elevenLabsBridge && elevenLabsBridge.ws && elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
-                  // Signal 1: user_activity
-                  console.log('[Interruption] Sending user_activity signal');
-                  elevenLabsBridge.ws.send(JSON.stringify({ type: 'user_activity' }));
-                  
-                  // Signal 2: interrupt event (try this too)
-                  setTimeout(() => {
-                    if (elevenLabsBridge.ws && elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
-                      console.log('[Interruption] Sending interrupt signal');
-                      elevenLabsBridge.ws.send(JSON.stringify({ type: 'interrupt' }));
-                    }
-                  }, 50);
+                // Send placeholder user_message to trigger AI stop/response
+                // Only user_message actually interrupts, not user_activity
+                if (elevenLabsBridge) {
+                  console.log('[Interruption] Sending placeholder message to interrupt AI');
+                  elevenLabsBridge.sendTextMessage('...');
                 }
                 
                 isAISpeaking = false;
-                console.log('[Interruption] ✅ Interruption handled');
+                console.log('[Interruption] ✅ Interruption signal sent');
               }
             }
           },
