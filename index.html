@@ -650,20 +650,43 @@
               addStatus('🔇 Phone audio muted (routing to AI)', 'success');
             }
 
-            // Monitor incoming audio levels
+            // Monitor incoming audio levels AND detect interruptions
             const monitorContext = new AudioContext();
             const monitorSource = monitorContext.createMediaStreamSource(stream);
             const monitorAnalyser = monitorContext.createAnalyser();
             monitorSource.connect(monitorAnalyser);
 
             const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
+            
+            // Check audio level MORE FREQUENTLY for interruption detection
             setInterval(() => {
               monitorAnalyser.getByteFrequencyData(monitorData);
               const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
+              
+              // FAST INTERRUPTION: Detect speech at audio level (before Soniox transcribes)
+              if (avg > 15) { // Threshold for speech detection
+                if (isAISpeaking && !userInterruptionDetected) {
+                  userInterruptionDetected = true;
+                  console.log('[Interruption] ⚡ FAST DETECT - Audio level:', avg, '- STOPPING AI NOW!');
+                  
+                  // Clear AI audio IMMEDIATELY
+                  if (virtualAudioSource) {
+                    virtualAudioSource.clearBuffer();
+                  }
+                  
+                  // Signal ElevenLabs
+                  if (elevenLabsBridge && elevenLabsBridge.ws && elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
+                    elevenLabsBridge.ws.send(JSON.stringify({ type: 'user_activity' }));
+                  }
+                  
+                  isAISpeaking = false;
+                }
+              }
+              
               if (avg > 5) {
                 console.log('[Audio] Remote party speaking - level:', Math.round(avg));
               }
-            }, 2000);
+            }, 100); // Check every 100ms for FAST detection
 
             const audioTrack = stream.getAudioTracks()[0];
             if (audioTrack) {
