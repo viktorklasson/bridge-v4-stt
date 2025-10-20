@@ -216,7 +216,7 @@
       folder: '/tics',  // Use existing tics folder
       files: ['tic1.mp3', 'tic2.mp3', 'tic3.mp3'],// Your existing sound files
       enabled: true,
-      probability: 0.7 // 70% chance to play sound
+      probability: 0.5 // 70% chance to play sound
     };
 
     // Telnect recording configuration
@@ -230,6 +230,8 @@
     let phoneAudioStream = null;
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
+    let isAISpeaking = false; // Track if AI is currently speaking
+    let userInterruptionDetected = false; // Track if user started speaking during AI
 
     // Audio level tracking for decay
     let lastPhoneLevel = 0;
@@ -1048,6 +1050,9 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
+            // Reset interruption flag - user finished speaking
+            userInterruptionDetected = false;
+
             // Play thinking sound IMMEDIATELY (while AI processes)
             playThinkingSound();
 
@@ -1059,11 +1064,37 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
               console.error('[STT→AI] ❌ ElevenLabs bridge not available!');
             }
           },
-            onPartialTranscript: (text) => {
-              // Called for partial/interim results
-              console.log('[STT] 📝 Partial transcript:', text);
-              addStatus(`🗣️ Hearing: "${text}"`, 'info');
-            },
+          onPartialTranscript: (text) => {
+            // Called for partial/interim results
+            console.log('[STT] 📝 Partial transcript:', text);
+            addStatus(`🗣️ Hearing: "${text}"`, 'info');
+            
+            // INTERRUPTION DETECTION: User is speaking!
+            if (text && text.trim().length > 0) {
+              // If AI is currently speaking, this is an interruption
+              if (isAISpeaking && !userInterruptionDetected) {
+                userInterruptionDetected = true;
+                console.log('[Interruption] 🛑 User interrupted AI! Stopping AI audio...');
+                addStatus('🛑 User interrupted - stopping AI', 'info');
+                
+                // Clear AI audio buffer immediately
+                if (virtualAudioSource) {
+                  virtualAudioSource.clearBuffer();
+                }
+                
+                // Notify ElevenLabs of interruption
+                if (elevenLabsBridge && elevenLabsBridge.ws && elevenLabsBridge.ws.readyState === WebSocket.OPEN) {
+                  const interruptionMsg = {
+                    type: 'user_activity'
+                  };
+                  console.log('[Interruption] Sending user_activity to ElevenLabs');
+                  elevenLabsBridge.ws.send(JSON.stringify(interruptionMsg));
+                }
+                
+                isAISpeaking = false;
+              }
+            }
+          },
             onStatusChange: (status) => {
               console.log('[Soniox] Status:', status);
               if (status === 'connected') {

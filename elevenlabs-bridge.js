@@ -409,6 +409,9 @@ class ElevenLabsBridge {
         } else if (message.type === 'audio') {
           // Server is sending audio as JSON with base64
           if (message.audio_event && message.audio_event.audio_base_64) {
+            // Mark that AI is speaking
+            window.isAISpeaking = true;
+            
             // Decode base64 to binary
             const binaryString = atob(message.audio_event.audio_base_64);
             const bytes = new Uint8Array(binaryString.length);
@@ -425,6 +428,14 @@ class ElevenLabsBridge {
             if (this.virtualAudioSource) {
               this.virtualAudioSource.addAudioData(pcmData);
               console.log('[ElevenLabs] Sent AI audio to virtual mic → phone call');
+              
+              // Mark AI as done speaking after queue plays out
+              setTimeout(() => {
+                if (this.virtualAudioSource && !this.virtualAudioSource.playing) {
+                  window.isAISpeaking = false;
+                  console.log('[ElevenLabs] AI finished speaking');
+                }
+              }, 1000);
             }
           }
         } else if (message.type === 'agent_response') {
@@ -437,7 +448,28 @@ class ElevenLabsBridge {
           const userText = message.user_transcription_event?.user_transcript || message.user_transcript;
           console.log('[ElevenLabs] 🎤 User transcript (from ElevenLabs):', userText);
         } else if (message.type === 'interruption') {
-          console.log('[ElevenLabs] User interrupted agent');
+          console.log('[ElevenLabs] 🛑 Server confirmed interruption - clearing AI audio');
+          
+          // Clear any queued AI audio
+          if (this.virtualAudioSource) {
+            this.virtualAudioSource.clearBuffer();
+          }
+          
+          window.isAISpeaking = false;
+          
+        } else if (message.type === 'agent_chat_response_part') {
+          // Handle streaming text responses
+          const textPart = message.text_response_part;
+          if (textPart) {
+            console.log('[ElevenLabs] Agent text part:', textPart.type, '-', textPart.text?.substring(0, 50));
+            
+            if (textPart.type === 'start') {
+              console.log('[ElevenLabs] 🎤 Agent starting to speak...');
+              window.isAISpeaking = true;
+            } else if (textPart.type === 'stop') {
+              console.log('[ElevenLabs] Agent finished text generation');
+            }
+          }
         } else {
           console.log('[ElevenLabs] ⚠️ Unknown/unhandled message type:', message.type);
           console.log('[ElevenLabs] Full message:', JSON.stringify(message).substring(0, 500));
