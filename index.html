@@ -667,20 +667,51 @@
             addStatus('🔇 Phone audio muted (routing to AI)', 'success');
           }
           
-          // Monitor incoming audio levels
-          const monitorContext = new AudioContext();
-          const monitorSource = monitorContext.createMediaStreamSource(stream);
-          const monitorAnalyser = monitorContext.createAnalyser();
-          monitorSource.connect(monitorAnalyser);
-          
-          const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
-          setInterval(() => {
-            monitorAnalyser.getByteFrequencyData(monitorData);
-            const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
-            if (avg > 5) {
-              console.log('[Audio] Remote party speaking - level:', Math.round(avg));
-            }
-          }, 2000);
+            // Monitor incoming audio levels AND use HIGH threshold for interrupt detection
+            const monitorContext = new AudioContext();
+            const monitorSource = monitorContext.createMediaStreamSource(stream);
+            const monitorAnalyser = monitorContext.createAnalyser();
+            monitorSource.connect(monitorAnalyser);
+
+            const monitorData = new Uint8Array(monitorAnalyser.frequencyBinCount);
+            let consecutiveHighAudio = 0; // Require sustained speech to avoid noise
+            
+            setInterval(() => {
+              monitorAnalyser.getByteFrequencyData(monitorData);
+              const avg = monitorData.reduce((a, b) => a + b) / monitorData.length;
+              
+              // HIGH threshold interrupt detection - requires clear speech
+              if (avg > 25) { // Higher threshold (was 15) - only strong speech
+                consecutiveHighAudio++;
+                
+                // Require 2 consecutive high readings to confirm speech (not noise)
+                if (consecutiveHighAudio >= 2 && isAISpeaking && !userInterruptionDetected) {
+                  userInterruptionDetected = true;
+                  console.log('[Interruption] ⚡ INSTANT DETECT - Level:', avg, '- STOPPING AI!');
+                  
+                  // Clear AI audio IMMEDIATELY
+                  if (virtualAudioSource) {
+                    virtualAudioSource.clearBuffer();
+                  }
+                  
+                  // Play interrupt sound
+                  playInterruptSound();
+                  
+                  // Signal ElevenLabs
+                  if (elevenLabsBridge) {
+                    elevenLabsBridge.sendTextMessage('---');
+                  }
+                  
+                  isAISpeaking = false;
+                }
+              } else {
+                consecutiveHighAudio = 0; // Reset if level drops
+              }
+              
+              if (avg > 5) {
+                console.log('[Audio] Remote party speaking - level:', Math.round(avg));
+              }
+            }, 100); // Check every 100ms for fast detection
           
           const audioTrack = stream.getAudioTracks()[0];
           if (audioTrack) {
