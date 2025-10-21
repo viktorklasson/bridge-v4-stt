@@ -1149,20 +1149,11 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
-            // Skip if this was just an interruption marker
-            if (text === '---') {
-              console.log('[STT→AI] Skipping interrupt marker (---)');
-              window.userInterruptionDetected = false;
-              return;
-            }
-
-            // CRITICAL FIX: If we just sent an interrupt, skip this transcript
-            // The user was speaking DURING the interruption, so we already notified the AI
+            // Reset the interruption flag
+            // User has finished speaking after the interrupt
             if (window.userInterruptionDetected) {
-              console.log('[STT→AI] ⚠️⚠️⚠️ SKIPPING - This transcript was captured during interruption');
-              console.log('[STT→AI] Not sending to prevent duplicate AI responses');
+              console.log('[STT→AI] ✅ User finished speaking after interruption');
               window.userInterruptionDetected = false;
-              return;
             }
 
             // Play thinking sound IMMEDIATELY (while AI processes)
@@ -1230,18 +1221,17 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
                   virtualAudioSource.clearBuffer();
                   console.log('[Interruption] ✅ Audio buffer cleared');
                   
-                  // Play interrupt sound
+                  // Play interrupt sound ("Oh sorry what did you say")
+                  // This prompts the user to restate their interruption
                   playInterruptSound();
                   
-                  // Send interrupt marker to AI
-                  if (elevenLabsBridge) {
-                    console.log('[Interruption] Sending interrupt marker (---) to AI');
-                    elevenLabsBridge.sendTextMessage('---');
-                  }
+                  // DON'T send "---" marker - wait for user's actual speech
+                  // The interrupt sound gives user time to speak
+                  // Their transcript will be sent via onTranscript callback
                   
                   window.isAISpeaking = false;
                   window.aiSpeakingStartTime = null;
-                  console.log('[Interruption] ✅✅✅ Interruption complete');
+                  console.log('[Interruption] ✅ Audio cleared, interrupt sound playing, waiting for user speech...');
                 }
               }, config.debounce);
             } else if (!aiIsPlaying && interruptionDebounceTimer) {
