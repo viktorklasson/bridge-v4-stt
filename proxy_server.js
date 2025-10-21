@@ -51,11 +51,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Health check endpoint for Render
+  // Health check endpoint for Render (UPDATED)
   if (req.url === '/health' || req.url === '/healthz') {
+    console.log('[Health] Health check requested');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ 
       status: 'ok', 
+      service: 'elevenlabs-bridge',
       timestamp: new Date().toISOString(),
       activeBridges: activeBridges.size 
     }));

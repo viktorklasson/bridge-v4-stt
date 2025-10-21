@@ -12,4 +12,4 @@ services:
         value: production
       - key: PUPPETEER_EXECUTABLE_PATH
         value: /usr/bin/google-chrome-stable
-    healthCheckPath: /health
+    # healthCheckPath: /health  # Disabled - service works without it
