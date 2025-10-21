@@ -254,8 +254,10 @@
 
     // Helper function to play a random sound (thinking or interrupt)
     async function playRandomSound(config, label) {
+      console.log(`[${label}] 🎬 playRandomSound called - enabled:`, config.enabled, 'virtualAudio:', !!virtualAudioSource);
+      
       if (!config.enabled || !virtualAudioSource) {
-        console.log(`[${label}] Sounds disabled or no virtual audio`);
+        console.log(`[${label}] ❌ Sounds disabled or no virtual audio`);
         return;
       }
 
@@ -266,7 +268,7 @@
           console.log(`[${label}] Skipped (probability - rolled`, roll.toFixed(2), '>', config.probability + ')');
           return;
         }
-        console.log(`[${label}] Playing (rolled`, roll.toFixed(2), '<=', config.probability + ')');
+        console.log(`[${label}] ✅ Playing (rolled`, roll.toFixed(2), '<=', config.probability + ')');
       }
 
       try {
@@ -275,18 +277,23 @@
         const soundFile = config.files[randomIndex];
         const soundUrl = `${config.folder}/${soundFile}`;
 
-        console.log(`[${label}] 🎵 Playing:`, soundFile);
+        console.log(`[${label}] 🎵 Fetching sound:`, soundUrl);
         addStatus(`${label === 'Thinking' ? '🤔' : '🛑'} Playing ${label.toLowerCase()} sound...`, 'info');
 
         // Fetch and decode the audio file
         const response = await fetch(soundUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        console.log(`[${label}] ✅ Fetched, decoding...`);
         const arrayBuffer = await response.arrayBuffer();
 
         // Decode audio
         const audioContext = new AudioContext({ sampleRate: 48000 });
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-        console.log(`[${label}] Audio decoded - Duration:`, audioBuffer.duration, 's');
+        console.log(`[${label}] ✅ Decoded - Duration:`, audioBuffer.duration, 's, Samples:', audioBuffer.length);
 
         // Convert to PCM16 and send to virtual audio source
         const channelData = audioBuffer.getChannelData(0); // Mono
@@ -299,10 +306,11 @@
 
         // Send to virtual audio (caller will hear it)
         virtualAudioSource.addAudioData(pcm16);
-        console.log(`[${label}] ✅ Sound sent to caller`);
+        console.log(`[${label}] ✅✅✅ Sound sent to caller - PCM samples:`, pcm16.length);
 
       } catch (error) {
-        console.error(`[${label}] Failed to play sound:`, error);
+        console.error(`[${label}] ❌❌❌ Failed to play sound:`, error);
+        console.error(`[${label}] Error details:`, error.message, error.stack);
       }
     }
 
