@@ -216,7 +216,14 @@
       folder: '/tics',  // Use existing tics folder
       files: ['tic1.mp3', 'tic2.mp3', 'tic3.mp3'],// Your existing sound files
       enabled: true,
-      probability: 0.5 // 70% chance to play sound
+      probability: 0.5 // 50% chance to play sound
+    };
+
+    // Interrupt sounds configuration
+    const interruptSounds = {
+      folder: '/interrupt',
+      files: ['int1.mp3', 'int2.mp3', 'int3.mp3'], // Add your interrupt sounds
+      enabled: true
     };
 
     // Telnect recording configuration
@@ -245,30 +252,31 @@
     // Using 48kHz to match both phone system and ElevenLabs
     virtualAudioSource = new VirtualAudioSource(48000);
 
-    // Helper function to play a random thinking sound
-    async function playThinkingSound() {
-      if (!thinkingSounds.enabled || !virtualAudioSource) {
-        console.log('[Thinking] Thinking sounds disabled or no virtual audio');
+    // Helper function to play a random sound (thinking or interrupt)
+    async function playRandomSound(config, label) {
+      if (!config.enabled || !virtualAudioSource) {
+        console.log(`[${label}] Sounds disabled or no virtual audio`);
         return;
       }
 
-      // Check probability - maybe skip this time
-      const roll = Math.random();
-      if (roll > thinkingSounds.probability) {
-        console.log('[Thinking] Skipped (probability check - rolled', roll.toFixed(2), '>', thinkingSounds.probability + ')');
-        return;
+      // Check probability if it exists
+      if (config.probability !== undefined) {
+        const roll = Math.random();
+        if (roll > config.probability) {
+          console.log(`[${label}] Skipped (probability - rolled`, roll.toFixed(2), '>', config.probability + ')');
+          return;
+        }
+        console.log(`[${label}] Playing (rolled`, roll.toFixed(2), '<=', config.probability + ')');
       }
-
-      console.log('[Thinking] Playing sound (rolled', roll.toFixed(2), '<=', thinkingSounds.probability + ')');
 
       try {
         // Pick random sound file
-        const randomIndex = Math.floor(Math.random() * thinkingSounds.files.length);
-        const soundFile = thinkingSounds.files[randomIndex];
-        const soundUrl = `${thinkingSounds.folder}/${soundFile}`;
+        const randomIndex = Math.floor(Math.random() * config.files.length);
+        const soundFile = config.files[randomIndex];
+        const soundUrl = `${config.folder}/${soundFile}`;
 
-        console.log('[Thinking] 🎵 Playing thinking sound:', soundFile);
-        addStatus('🤔 Playing thinking sound...', 'info');
+        console.log(`[${label}] 🎵 Playing:`, soundFile);
+        addStatus(`${label === 'Thinking' ? '🤔' : '🛑'} Playing ${label.toLowerCase()} sound...`, 'info');
 
         // Fetch and decode the audio file
         const response = await fetch(soundUrl);
@@ -278,7 +286,7 @@
         const audioContext = new AudioContext({ sampleRate: 48000 });
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-        console.log('[Thinking] Audio decoded - Duration:', audioBuffer.duration, 's');
+        console.log(`[${label}] Audio decoded - Duration:`, audioBuffer.duration, 's');
 
         // Convert to PCM16 and send to virtual audio source
         const channelData = audioBuffer.getChannelData(0); // Mono
@@ -291,11 +299,20 @@
 
         // Send to virtual audio (caller will hear it)
         virtualAudioSource.addAudioData(pcm16);
-        console.log('[Thinking] ✅ Thinking sound sent to caller');
+        console.log(`[${label}] ✅ Sound sent to caller`);
 
       } catch (error) {
-        console.error('[Thinking] Failed to play thinking sound:', error);
+        console.error(`[${label}] Failed to play sound:`, error);
       }
+    }
+
+    // Wrapper functions
+    async function playThinkingSound() {
+      await playRandomSound(thinkingSounds, 'Thinking');
+    }
+
+    async function playInterruptSound() {
+      await playRandomSound(interruptSounds, 'Interrupt');
     }
     
     // Pre-create the synthetic stream context to avoid user gesture issues
@@ -1050,9 +1067,9 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
-            // Skip if this was just an interruption placeholder
-            if (text === '...') {
-              console.log('[STT→AI] Skipping placeholder interrupt message');
+            // Skip if this was just an interruption marker
+            if (text === '---') {
+              console.log('[STT→AI] Skipping interrupt marker (---)');
               userInterruptionDetected = false;
               return;
             }
@@ -1090,15 +1107,18 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
                   console.log('[Interruption] Audio buffer cleared');
                 }
                 
+                // Play interrupt sound IMMEDIATELY
+                playInterruptSound();
+                
                 // Send placeholder user_message to trigger AI stop/response
-                // Only user_message actually interrupts, not user_activity
+                // Using "---" as interruption marker (not "...")
                 if (elevenLabsBridge) {
-                  console.log('[Interruption] Sending placeholder message to interrupt AI');
-                  elevenLabsBridge.sendTextMessage('...');
+                  console.log('[Interruption] Sending interrupt marker (---) to AI');
+                  elevenLabsBridge.sendTextMessage('---');
                 }
                 
                 isAISpeaking = false;
-                console.log('[Interruption] ✅ Interruption signal sent');
+                console.log('[Interruption] ✅ Interruption handled');
               }
             }
           },
