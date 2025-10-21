@@ -51,6 +51,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Health check endpoint for Render
+  if (req.url === '/health' || req.url === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      activeBridges: activeBridges.size 
+    }));
+    return;
+  }
+
   // Check if this is a webhook request
   if (req.url === '/webhook/inbound-call' && req.method === 'POST') {
     handleWebhook(req, res);
