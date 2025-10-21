@@ -237,8 +237,10 @@
     let phoneAudioStream = null;
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
-    let isAISpeaking = false; // Track if AI is currently speaking
-    let userInterruptionDetected = false; // Track if user started speaking during AI
+    
+    // Use WINDOW scope for interruption state (accessible everywhere)
+    window.isAISpeaking = false; // Track if AI is currently speaking
+    window.userInterruptionDetected = false; // Track if user started speaking during AI
     
     // Audio level tracking for decay
     let lastPhoneLevel = 0;
@@ -1083,7 +1085,7 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             }
 
             // Reset interruption flag - user finished speaking
-            userInterruptionDetected = false;
+            window.userInterruptionDetected = false;
 
             // Play thinking sound IMMEDIATELY (while AI processes)
             playThinkingSound();
@@ -1102,10 +1104,12 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             addStatus(`🗣️ Hearing: "${text}"`, 'info');
             
             // INTERRUPTION DETECTION: User is speaking!
+            console.log('[STT] Partial - isAISpeaking:', window.isAISpeaking, 'detected:', window.userInterruptionDetected);
+            
             if (text && text.trim().length > 0) {
               // If AI is currently speaking, this is an interruption
-              if (isAISpeaking && !userInterruptionDetected) {
-                userInterruptionDetected = true;
+              if (window.isAISpeaking && !window.userInterruptionDetected) {
+                window.userInterruptionDetected = true;
                 console.log('[Interruption] 🛑🛑🛑 USER INTERRUPTED AI! Stopping audio NOW...');
                 addStatus('🛑 User interrupted - stopping AI', 'info');
                 
@@ -1119,13 +1123,13 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
                 playInterruptSound();
                 
                 // Send placeholder user_message to trigger AI stop/response
-                // Using "---" as interruption marker (not "...")
+                // Using "---" as interruption marker
                 if (elevenLabsBridge) {
                   console.log('[Interruption] Sending interrupt marker (---) to AI');
                   elevenLabsBridge.sendTextMessage('---');
                 }
                 
-                isAISpeaking = false;
+                window.isAISpeaking = false;
                 console.log('[Interruption] ✅ Interruption handled');
               }
             }
