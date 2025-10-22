@@ -238,81 +238,8 @@
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
     
-    // Use WINDOW scope for interruption state (accessible everywhere)
-    window.isAISpeaking = false; // Track if AI is currently speaking
-    window.userInterruptionDetected = false; // Track if user started speaking during AI
-    window.aiSpeakingStartTime = null; // Track when AI started current response (for analytics)
-    
-    // ADAPTIVE INTERRUPTION SENSITIVITY
-    let interruptionDebounceTimer = null;
-    
-    // Analytics tracking
-    const interruptionAnalytics = {
-      interrupts: [], // Array of {timestamp, aiDuration}
-      currentSensitivity: 'normal', // normal, medium, strict
-      
-      // Sensitivity thresholds
-      thresholds: {
-        normal: { debounce: 400, minWords: 1 },
-        medium: { debounce: 550, minWords: 2 },
-        strict: { debounce: 700, minWords: 3 }
-      },
-      
-      // Track an interruption
-      record(aiDuration) {
-        const now = Date.now();
-        this.interrupts.push({ timestamp: now, aiDuration });
-        
-        // Clean old entries (>2 minutes)
-        this.interrupts = this.interrupts.filter(i => now - i.timestamp < 120000);
-        
-        console.log('[Adaptive] Recorded interrupt - AI had spoken for', aiDuration, 'ms');
-        this.evaluateSensitivity();
-      },
-      
-      // Evaluate and adjust sensitivity
-      evaluateSensitivity() {
-        const now = Date.now();
-        const recentInterrupts = this.interrupts.filter(i => now - i.timestamp < 60000);
-        
-        if (recentInterrupts.length === 0) {
-          // No recent interrupts - reset to normal
-          if (this.currentSensitivity !== 'normal') {
-            console.log('[Adaptive] ✅ No interrupts for 1min - resetting to NORMAL sensitivity');
-            this.currentSensitivity = 'normal';
-          }
-          return;
-        }
-        
-        // Count early interrupts (AI spoke <2 seconds)
-        const earlyInterrupts = recentInterrupts.filter(i => i.aiDuration < 2000).length;
-        
-        console.log('[Adaptive] Analysis: ', recentInterrupts.length, 'interrupts in last 60s,', earlyInterrupts, 'were early');
-        
-        // Adjust sensitivity based on patterns
-        if (earlyInterrupts >= 3 && this.currentSensitivity === 'normal') {
-          this.currentSensitivity = 'medium';
-          console.log('[Adaptive] ⚠️ Too many early interrupts - increasing to MEDIUM sensitivity');
-        } else if (earlyInterrupts >= 5 && this.currentSensitivity === 'medium') {
-          this.currentSensitivity = 'strict';
-          console.log('[Adaptive] ⚠️⚠️ Excessive early interrupts - increasing to STRICT sensitivity');
-        } else if (earlyInterrupts <= 1 && this.currentSensitivity === 'strict') {
-          this.currentSensitivity = 'medium';
-          console.log('[Adaptive] ✅ Fewer false positives - reducing to MEDIUM sensitivity');
-        } else if (earlyInterrupts === 0 && this.currentSensitivity === 'medium') {
-          this.currentSensitivity = 'normal';
-          console.log('[Adaptive] ✅ No false positives - resetting to NORMAL sensitivity');
-        }
-        
-        const config = this.thresholds[this.currentSensitivity];
-        console.log('[Adaptive] Current config:', this.currentSensitivity, '- debounce:', config.debounce + 'ms', 'minWords:', config.minWords);
-      },
-      
-      // Get current configuration
-      getConfig() {
-        return this.thresholds[this.currentSensitivity];
-      }
-    };
+    // Simple interruption state (let Soniox handle turn-taking)
+    window.isAISpeaking = false;
     
     // Audio level tracking for decay
     let lastPhoneLevel = 0;
@@ -1149,17 +1076,10 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
-            // Reset the interruption flag
-            // User has finished speaking after the interrupt
-            if (window.userInterruptionDetected) {
-              console.log('[STT→AI] ✅ User finished speaking after interruption');
-              window.userInterruptionDetected = false;
-            }
-
-            // Play thinking sound IMMEDIATELY (while AI processes)
+            // Play thinking sound (while AI processes)
             playThinkingSound();
 
-            // Send to ElevenLabs as text message
+            // Send to ElevenLabs
             if (elevenLabsBridge) {
               console.log('[STT→AI] Sending to ElevenLabs:', text);
               elevenLabsBridge.sendTextMessage(text);
@@ -1168,77 +1088,9 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             }
           },
           onPartialTranscript: (text) => {
-            // Called for partial/interim results
+            // Called for partial/interim results - just show it, Soniox handles turn-taking
             console.log('[STT] 📝 Partial transcript:', text);
             addStatus(`🗣️ Hearing: "${text}"`, 'info');
-            
-            // ADAPTIVE INTERRUPTION DETECTION
-            const aiIsPlaying = virtualAudioSource && (virtualAudioSource.playing || virtualAudioSource.queueLength > 0);
-            
-            console.log('[STT] Partial - AI playing:', aiIsPlaying, '(queue:', virtualAudioSource?.queueLength, ') detected:', window.userInterruptionDetected);
-            
-            if (text && text.trim().length > 0 && aiIsPlaying && !window.userInterruptionDetected) {
-              // Get current adaptive sensitivity config
-              const config = interruptionAnalytics.getConfig();
-              
-              // Count words in partial transcript
-              const words = text.trim().split(/\s+/).length;
-              
-              console.log('[Adaptive] User speaking - words:', words, 'threshold:', config.minWords, 'debounce:', config.debounce + 'ms');
-              
-              // Clear existing timer
-              if (interruptionDebounceTimer) {
-                clearTimeout(interruptionDebounceTimer);
-              }
-              
-              // Check if meets minimum word threshold
-              if (words < config.minWords) {
-                console.log('[Adaptive] ⏸️ Below word threshold, waiting...');
-                return;
-              }
-              
-              // Start debounce timer
-              interruptionDebounceTimer = setTimeout(() => {
-                // Double-check AI is still playing
-                const stillPlaying = virtualAudioSource && (virtualAudioSource.playing || virtualAudioSource.queueLength > 0);
-                
-                if (stillPlaying && !window.userInterruptionDetected) {
-                  window.userInterruptionDetected = true;
-                  
-                  // Calculate how long AI had been speaking
-                  const aiDuration = window.aiSpeakingStartTime ? Date.now() - window.aiSpeakingStartTime : 0;
-                  
-                  console.log('[Interruption] 🛑🛑🛑 USER INTERRUPTED AI!');
-                  console.log('[Interruption] AI had spoken for:', aiDuration, 'ms');
-                  console.log('[Interruption] Queue had', virtualAudioSource.queueLength, 'chunks');
-                  console.log('[Interruption] Sensitivity:', interruptionAnalytics.currentSensitivity);
-                  addStatus('🛑 User interrupted - stopping AI', 'info');
-                  
-                  // Record for analytics
-                  interruptionAnalytics.record(aiDuration);
-                  
-                  // IMMEDIATELY stop AI audio
-                  virtualAudioSource.clearBuffer();
-                  console.log('[Interruption] ✅ Audio buffer cleared');
-                  
-                  // Play interrupt sound ("Oh sorry what did you say")
-                  // This prompts the user to restate their interruption
-                  playInterruptSound();
-                  
-                  // DON'T send "---" marker - wait for user's actual speech
-                  // The interrupt sound gives user time to speak
-                  // Their transcript will be sent via onTranscript callback
-                  
-                  window.isAISpeaking = false;
-                  window.aiSpeakingStartTime = null;
-                  console.log('[Interruption] ✅ Audio cleared, interrupt sound playing, waiting for user speech...');
-                }
-              }, config.debounce);
-            } else if (!aiIsPlaying && interruptionDebounceTimer) {
-              // AI stopped playing, cancel pending interrupt
-              clearTimeout(interruptionDebounceTimer);
-              interruptionDebounceTimer = null;
-            }
           },
             onStatusChange: (status) => {
               console.log('[Soniox] Status:', status);

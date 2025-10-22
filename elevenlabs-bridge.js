@@ -467,7 +467,6 @@ class ElevenLabsBridge {
             if (textPart.type === 'start') {
               console.log('[ElevenLabs] 🎤 Agent starting to speak...');
               window.isAISpeaking = true;
-              window.aiSpeakingStartTime = Date.now(); // Track start time for interruption analytics
             } else if (textPart.type === 'stop') {
               console.log('[ElevenLabs] Agent finished text generation');
             }
