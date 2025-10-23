@@ -238,8 +238,10 @@
     let virtualAudioSource = null;
     let currentCallId = null; // Store the call ID for recording control
     
-    // Simple interruption state (let Soniox handle turn-taking)
+    // VAD-based interruption
     window.isAISpeaking = false;
+    window.aiMuted = false; // Track if AI is muted due to user speech (global for elevenlabs-bridge)
+    let vadInterruptTimer = null; // 7-second safety timer
     
     // Audio level tracking for decay
     let lastPhoneLevel = 0;
@@ -1076,6 +1078,16 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             console.log('[STT→AI] ✅✅✅ Complete transcript ready:', text);
             addStatus(`👤 User said: "${text}"`, 'info');
 
+            // Cancel safety timer - user finished speaking
+            if (vadInterruptTimer) {
+              clearTimeout(vadInterruptTimer);
+              vadInterruptTimer = null;
+              console.log('[VAD] ✅ Endpoint detected - cancelled safety timer');
+            }
+            
+            // Unmute AI for next response
+            window.aiMuted = false;
+
             // Play thinking sound (while AI processes)
             playThinkingSound();
 
@@ -1088,9 +1100,32 @@ nollnoll, nollett, nolltvå, nolltre, nollfyra, nollfem, nollsex, nollsju, noll�
             }
           },
           onPartialTranscript: (text) => {
-            // Called for partial/interim results - just show it, Soniox handles turn-taking
+            // VAD detected user speech - interrupt AI if speaking
             console.log('[STT] 📝 Partial transcript:', text);
             addStatus(`🗣️ Hearing: "${text}"`, 'info');
+            
+            if (text && text.trim().length > 0) {
+              const aiIsPlaying = virtualAudioSource && (virtualAudioSource.playing || virtualAudioSource.queueLength > 0);
+              
+              // If AI is playing, interrupt it silently
+              if (aiIsPlaying && !window.aiMuted) {
+                console.log('[VAD] 🛑 User speaking - stopping AI (silent interrupt)');
+                virtualAudioSource.clearBuffer();
+                window.aiMuted = true;
+                window.isAISpeaking = false;
+              }
+              
+              // Reset/start 7-second safety timer
+              if (vadInterruptTimer) {
+                clearTimeout(vadInterruptTimer);
+              }
+              
+              vadInterruptTimer = setTimeout(() => {
+                console.log('[VAD] ⏰ 7-second timer expired - unmuting AI');
+                window.aiMuted = false;
+                vadInterruptTimer = null;
+              }, 7000);
+            }
           },
             onStatusChange: (status) => {
               console.log('[Soniox] Status:', status);

@@ -424,6 +424,12 @@ class ElevenLabsBridge {
             
             console.log('[ElevenLabs] Received AI audio (base64):', pcmData.length, 'samples');
             
+            // Check if AI is muted (user is speaking)
+            if (window.aiMuted) {
+              console.log('[ElevenLabs] 🔇 AI muted (user speaking) - dropping audio chunk');
+              return;
+            }
+            
             // Send to virtual audio source
             if (this.virtualAudioSource) {
               this.virtualAudioSource.addAudioData(pcmData);
